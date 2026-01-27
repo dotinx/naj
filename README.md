@@ -16,7 +16,6 @@
 
 ```bash
 cargo install --path .
-
 ```
 
 ## 📖 Usage
@@ -110,6 +109,12 @@ git \
 ```
 
 This ensures that if your "work" profile is missing a GPG key, Git will error out ("Secret key not available") rather than silently using your personal GPG key from `~/.gitconfig`.
+
+## 📦 Build Artifacts
+
+Use a machine running Linux to build artifacts for all targets. [rustup](https://rustup.rs/), [cross](https://github.com/cross-rs/cross), and `podman/docker` are required.
+
+Run [build.sh](./build.sh) to build artifacts for all targets.
 
 ## 📄 License
 
