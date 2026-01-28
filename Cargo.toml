@@ -1,6 +1,6 @@
 [package]
 name = "naj"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Manage your digital selves. (Derived from Old Chinese /*ŋˤajʔ/ 'I/Me')"
 authors = ["INX <inx@inx.wf>"]
