@@ -1,4 +1,6 @@
-# Naj (我 `/*ŋˤajʔ/`)
+# Naj
+
+![Naj Banner](assets/naj-banner.jpg)
 
 **Naj** is a lightweight, secure, and idempotent wrapper for Git, written in Rust. It solves the chaos of managing multiple Git identities (Work vs. Personal) by strictly isolating configurations and preventing accidental identity leaks.
 

@@ -9,7 +9,7 @@ readme = "README.md"
 homepage = "https://github.com/dotinx/naj"
 repository = "https://github.com/dotinx/naj"
 categories = ["command-line-utilities"]
-exclude = ["scripts/",]
+exclude = ["scripts/","assets/"]
 
 
 [dependencies]
