@@ -21,7 +21,7 @@ The tests in this directory focus on end-to-end (E2E) validation, ensuring that 
 To run these tests locally, ensure you have the following installed:
 - **Bash**: Most scripts use standard Bash features.
 - **Git**: Version 2.34+ is required for SSH signing tests.
-- **Naj**: The `naj` binary must be available in your PATH or accessible via the `GOSH_CMD` environment variable.
+- **Naj**: The `naj` binary must be available in your PATH or accessible via the `NAJ_CMD` environment variable.
 
 ## Running Tests
 
@@ -46,7 +46,7 @@ Each script initializes a sandbox in `/tmp/naj_test_*` or similar, ensuring that
 
 ## Design Principles
 
-1. **Isolation**: All tests use a dedicated `GOSH_CONFIG_PATH` and temporary directories to ensure side-effect-free execution.
+1. **Isolation**: All tests use a dedicated `NAJ_CONFIG_PATH` and temporary directories to ensure side-effect-free execution.
 2. **Assertions**: Scripts use exit codes and explicit checks to verify expected outcomes (e.g., checking `git cat-file` for signatures).
 3. **Readability**: Log levels (STEP, INFO, ERROR) are used to provide clear feedback during execution.
 
@@ -55,5 +55,5 @@ Each script initializes a sandbox in `/tmp/naj_test_*` or similar, ensuring that
 When adding a new test script:
 - Use `set -e` to ensure the script fails on the first error.
 - Use a dedicated sandbox directory for all temporary files.
-- Export `GOSH_CONFIG_PATH` to point into your sandbox.
+- Export `NAJ_CONFIG_PATH` to point into your sandbox.
 - Document the scenario and expected results in the script header.

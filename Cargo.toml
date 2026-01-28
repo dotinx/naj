@@ -8,7 +8,7 @@ license = "BSD-2-Clause"
 readme = "README.md"
 homepage = "https://github.com/dotinx/naj"
 repository = "https://github.com/dotinx/naj"
-categories = ["command-line-utilities", "development-tools::cargo-plugins"]
+categories = ["command-line-utilities"]
 exclude = ["tests/", "scripts/",]
 
 

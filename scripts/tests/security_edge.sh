@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- 准备 ---
-GOSH_CMD="naj" # 确保已编译或 alias
+NAJ_CMD="naj" # 确保已编译或 alias
 BASE_DIR="/tmp/naj_security_test"
 UNSAFE_REPO="$BASE_DIR/root_owned_repo"
 
@@ -21,7 +21,7 @@ echo "[TEST] Running 'naj' in a dubious ownership repo..."
 cd "$UNSAFE_REPO"
 
 # 2. 尝试运行 naj (期望失败)
-if $GOSH_CMD -l > /dev/null 2>&1; then
+if $NAJ_CMD -l > /dev/null 2>&1; then
     # 注意：naj -l 不需要 git 仓库，所以应该成功。
     # 我们需要测 switch 或 exec，这需要 git 上下文
     echo "  (naj list works, which is fine)"
@@ -29,7 +29,7 @@ fi
 
 echo "Attempting to switch profile..."
 # 捕获输出
-OUTPUT=$($GOSH_CMD testprofile 2>&1 || true)
+OUTPUT=$($NAJ_CMD testprofile 2>&1 || true)
 
 # 3. 验证结果
 if echo "$OUTPUT" | grep -q "fatal: detected dubious ownership"; then

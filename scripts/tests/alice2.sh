@@ -2,11 +2,11 @@
 set -e
 
 # --- 0. 环境与工具准备 ---
-GOSH_CMD="naj" # 确保已编译或 alias 到 cargo run
+NAJ_CMD="naj" # 确保已编译或 alias 到 cargo run
 BASE_DIR="/tmp/alice_demo_debug"
 
 # 隔离 Naj 配置
-export GOSH_CONFIG_PATH="$BASE_DIR/config"
+export NAJ_CONFIG_PATH="$BASE_DIR/config"
 # 隔离 SSH 密钥目录
 SSH_DIR="$BASE_DIR/ssh_keys"
 # 模拟仓库目录
@@ -43,7 +43,7 @@ info "Git Version: $GIT_VERSION (SSH Signing requires 2.34+)"
 # --- 1. 清理与沙盒初始化 ---
 log "Initializing Sandbox at $BASE_DIR..."
 rm -rf "$BASE_DIR"
-mkdir -p "$GOSH_CONFIG_PATH"
+mkdir -p "$NAJ_CONFIG_PATH"
 mkdir -p "$SSH_DIR"
 mkdir -p "$REPO_DIR"
 
@@ -58,8 +58,8 @@ info "Generated Personal Key: .../id_personal"
 log "Creating Naj Profiles..."
 
 # 3.1 Work Profile
-$GOSH_CMD -c "Alice Work" "alice@contoso.com" "work"
-WORK_PROFILE="$GOSH_CONFIG_PATH/profiles/work.gitconfig"
+$NAJ_CMD -c "Alice Work" "alice@contoso.com" "work"
+WORK_PROFILE="$NAJ_CONFIG_PATH/profiles/work.gitconfig"
 cat >> "$WORK_PROFILE" <<EOF
 [gpg]
     format = ssh
@@ -73,8 +73,8 @@ EOF
 info "Configured Work Profile (SSH Signing Enabled)"
 
 # 3.2 Personal Profile
-$GOSH_CMD -c "Alice Personal" "alice@alice.com" "personal"
-PERSONAL_PROFILE="$GOSH_CONFIG_PATH/profiles/personal.gitconfig"
+$NAJ_CMD -c "Alice Personal" "alice@alice.com" "personal"
+PERSONAL_PROFILE="$NAJ_CONFIG_PATH/profiles/personal.gitconfig"
 cat >> "$PERSONAL_PROFILE" <<EOF
 [gpg]
     format = ssh
@@ -96,7 +96,7 @@ git init --bare --quiet "backend.git"
 
 # 使用 Naj 克隆
 info "Running: naj work clone ..."
-$GOSH_CMD work clone "$REPO_DIR/backend.git" work-backend
+$NAJ_CMD work clone "$REPO_DIR/backend.git" work-backend
 cd work-backend
 
 # 提交代码
@@ -115,7 +115,7 @@ cd oss-project
 
 # 切换到 Personal
 info "Running: naj personal (Switching...)"
-$GOSH_CMD personal
+$NAJ_CMD personal
 
 # 提交
 touch fun.txt
@@ -132,7 +132,7 @@ info "Executing 'naj work commit' (Should use Work Identity temporarily)..."
 
 # 执行 naj work commit
 # 注意：这里我们不再重定向到 /dev/null，我们要看 git 的原生输出
-$GOSH_CMD work commit --allow-empty -m "Hotfix via Exec (Scenario C)"
+$NAJ_CMD work commit --allow-empty -m "Hotfix via Exec (Scenario C)"
 
 # 🔍 查看日志
 # 这里的重点是：

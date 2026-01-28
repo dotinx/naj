@@ -2,9 +2,9 @@
 set -e
 
 # --- 配置 ---
-GOSH_CMD="naj"
+NAJ_CMD="naj"
 BASE_DIR="/tmp/naj_edge_test"
-export GOSH_CONFIG_PATH="$BASE_DIR/config"
+export NAJ_CONFIG_PATH="$BASE_DIR/config"
 REPO_DIR="$BASE_DIR/repos"
 
 # 颜色
@@ -15,11 +15,11 @@ log() { echo -e "\n\033[0;34m[TEST] $1\033[0m"; }
 
 # --- 初始化 ---
 rm -rf "$BASE_DIR"
-mkdir -p "$GOSH_CONFIG_PATH" "$REPO_DIR"
+mkdir -p "$NAJ_CONFIG_PATH" "$REPO_DIR"
 
 # 创建一个 Profile
 log "Creating Profile..."
-$GOSH_CMD -c "Edge User" "edge@test.com" "edge"
+$NAJ_CMD -c "Edge User" "edge@test.com" "edge"
 
 # --- 测试 1: 子目录执行 ---
 log "Scenario 1: Running from a deep subdirectory"
@@ -33,7 +33,7 @@ echo "Current dir: $(pwd)"
 echo "Executing 'naj edge' from subdirectory..."
 
 # 执行 switch
-$GOSH_CMD edge
+$NAJ_CMD edge
 
 # 验证
 # 我们需要回到根目录看 config，或者直接用 git config
@@ -57,7 +57,7 @@ git init --quiet
 echo "Current dir: $(pwd)"
 echo "Executing 'naj edge'..."
 
-$GOSH_CMD edge
+$NAJ_CMD edge
 
 # 验证
 CONFIG_EMAIL=$(git config user.email)

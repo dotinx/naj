@@ -2,11 +2,11 @@
 set -e
 
 # --- 0. 全局配置 ---
-GOSH_CMD="naj"
+NAJ_CMD="naj"
 BASE_DIR="/tmp/naj_collab_demo"
 
 # 隔离 Naj 配置
-export GOSH_CONFIG_PATH="$BASE_DIR/config"
+export NAJ_CONFIG_PATH="$BASE_DIR/config"
 # 隔离 SSH 密钥目录
 SSH_DIR="$BASE_DIR/ssh_keys"
 # 模拟仓库目录
@@ -58,7 +58,7 @@ verify_last_commit() {
 # --- 1. 初始化沙盒 ---
 log "Initializing Sandbox..."
 rm -rf "$BASE_DIR"
-mkdir -p "$GOSH_CONFIG_PATH/profiles"
+mkdir -p "$NAJ_CONFIG_PATH/profiles"
 mkdir -p "$SSH_DIR"
 mkdir -p "$REPO_DIR"
 
@@ -83,8 +83,8 @@ ok "Generated Bob's Key & Added to Trust Store"
 log "Configuring Naj Profiles..."
 
 # --> Alice Profile
-$GOSH_CMD -c "Alice Work" "alice@contoso.com" "alice_work"
-cat >> "$GOSH_CONFIG_PATH/profiles/alice_work.gitconfig" <<EOF
+$NAJ_CMD -c "Alice Work" "alice@contoso.com" "alice_work"
+cat >> "$NAJ_CONFIG_PATH/profiles/alice_work.gitconfig" <<EOF
 [gpg]
     format = ssh
 [user]
@@ -97,8 +97,8 @@ EOF
 ok "Profile 'alice_work' created"
 
 # --> Bob Profile
-$GOSH_CMD -c "Bob Partner" "bob@partner.org" "bob_partner"
-cat >> "$GOSH_CONFIG_PATH/profiles/bob_partner.gitconfig" <<EOF
+$NAJ_CMD -c "Bob Partner" "bob@partner.org" "bob_partner"
+cat >> "$NAJ_CONFIG_PATH/profiles/bob_partner.gitconfig" <<EOF
 [gpg]
     format = ssh
 [user]
@@ -121,7 +121,7 @@ cd project-alpha
 
 # 1. Alice 初始化项目
 echo ">>> [Commit 1] Alice starts the project"
-$GOSH_CMD alice_work
+$NAJ_CMD alice_work
 touch README.md
 git add README.md
 git commit -m "Init Project Alpha" > /dev/null
@@ -129,14 +129,14 @@ verify_last_commit "alice@contoso.com" "alice_work"
 
 # 2. Bob 进来修改 (模拟同一台机器切换身份)
 echo ">>> [Commit 2] Bob adds features"
-$GOSH_CMD bob_partner
+$NAJ_CMD bob_partner
 echo "Feature by Bob" >> README.md
 git commit -am "Bob adds feature" > /dev/null
 verify_last_commit "bob@partner.org" "bob_partner"
 
 # 3. Alice 审查并修改
 echo ">>> [Commit 3] Alice reviews and updates"
-$GOSH_CMD alice_work
+$NAJ_CMD alice_work
 echo "Reviewed by Alice" >> README.md
 git commit -am "Alice review" > /dev/null
 verify_last_commit "alice@contoso.com" "alice_work"
@@ -149,7 +149,7 @@ git init --quiet project-beta
 cd project-beta
 
 # 1. Bob 拥有这个项目
-$GOSH_CMD bob_partner
+$NAJ_CMD bob_partner
 touch main.rs
 git add main.rs
 git commit -m "Bob starts Beta" > /dev/null
@@ -163,7 +163,7 @@ echo "// Hotfix" >> main.rs
 git add main.rs
 
 # 这里是关键测试：Exec 模式下的签名注入
-$GOSH_CMD alice_work commit -m "Alice hotfix" > /dev/null
+$NAJ_CMD alice_work commit -m "Alice hotfix" > /dev/null
 
 # 验证：虽然此时 .git/config 指向 Bob，但这个 Commit 必须是 Alice 签名的
 verify_last_commit "alice@contoso.com" "alice_work"

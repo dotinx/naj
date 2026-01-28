@@ -2,11 +2,11 @@
 set -e
 
 # --- 0. 环境与工具准备 ---
-GOSH_CMD="naj" # 确保已编译或 alias 到 cargo run
+NAJ_CMD="naj" # 确保已编译或 alias 到 cargo run
 BASE_DIR="/tmp/alice_demo_signed"
 
 # 隔离 Naj 配置
-export GOSH_CONFIG_PATH="$BASE_DIR/config"
+export NAJ_CONFIG_PATH="$BASE_DIR/config"
 # 隔离 SSH 密钥目录
 SSH_DIR="$BASE_DIR/ssh_keys"
 # 模拟仓库目录
@@ -29,7 +29,7 @@ info "Git Version: $GIT_VERSION (SSH Signing requires 2.34+)"
 # --- 1. 清理与沙盒初始化 ---
 log "Initializing Sandbox at $BASE_DIR..."
 rm -rf "$BASE_DIR"
-mkdir -p "$GOSH_CONFIG_PATH"
+mkdir -p "$NAJ_CONFIG_PATH"
 mkdir -p "$SSH_DIR"
 mkdir -p "$REPO_DIR"
 
@@ -48,11 +48,11 @@ info "Generated Personal Key: $SSH_DIR/id_personal"
 log "Creating Naj Profiles..."
 
 # 3.1 创建基础 Work Profile
-$GOSH_CMD -c "Alice Work" "alice@contoso.com" "work"
+$NAJ_CMD -c "Alice Work" "alice@contoso.com" "work"
 
 # 3.2 手动追加 SSH 签名配置到 Work Profile
 # 这里演示了 Naj 的灵活性：你可以手动编辑生成的 .gitconfig
-WORK_PROFILE="$GOSH_CONFIG_PATH/profiles/work.gitconfig"
+WORK_PROFILE="$NAJ_CONFIG_PATH/profiles/work.gitconfig"
 cat >> "$WORK_PROFILE" <<EOF
 [gpg]
     format = ssh
@@ -67,8 +67,8 @@ EOF
 info "Configured Work Profile with SSH Signing"
 
 # 3.3 创建并配置 Personal Profile
-$GOSH_CMD -c "Alice Personal" "alice@alice.com" "personal"
-PERSONAL_PROFILE="$GOSH_CONFIG_PATH/profiles/personal.gitconfig"
+$NAJ_CMD -c "Alice Personal" "alice@alice.com" "personal"
+PERSONAL_PROFILE="$NAJ_CONFIG_PATH/profiles/personal.gitconfig"
 cat >> "$PERSONAL_PROFILE" <<EOF
 [gpg]
     format = ssh
@@ -92,7 +92,7 @@ git init --bare --quiet "backend.git"
 
 # 使用 Naj 克隆 (Clone -> Infer -> Switch)
 # 注意：这里我们 Clone 本地路径，但 core.sshCommand 依然会被配置进去，这是符合预期的
-$GOSH_CMD work clone "$REPO_DIR/backend.git" work-backend
+$NAJ_CMD work clone "$REPO_DIR/backend.git" work-backend
 cd work-backend
 
 # 提交代码
@@ -123,7 +123,7 @@ git init --quiet "oss-project"
 cd oss-project
 
 # 切换到 Personal
-$GOSH_CMD personal
+$NAJ_CMD personal
 
 # 提交
 touch fun.txt
@@ -149,7 +149,7 @@ log "Scenario C: Ephemeral Execution (Security Check)"
 # 当前在 oss-project (Personal)，我们想用 Work 身份签个名
 
 # 执行 naj work commit
-$GOSH_CMD work commit --allow-empty -m "Hotfix via Exec" > /dev/null
+$NAJ_CMD work commit --allow-empty -m "Hotfix via Exec" > /dev/null
 
 # 验证最后一次提交的签名
 # 注意：Exec 模式下，Naj 会通过 -c user.signingkey="" 先清空，再注入 work profile

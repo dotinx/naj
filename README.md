@@ -88,8 +88,8 @@ On the first run, Naj will automatically create these directories and a default 
 
 ### Environment Variables
 
-* `GOSH_CONFIG_PATH`: Override the config directory (Useful for NixOS or testing).
-* `GOSH_MOCKING=1`: Dry-run mode. Prints the constructed `git` command to stderr instead of executing it.
+* `NAJ_CONFIG_PATH`: Override the config directory (Useful for NixOS or testing).
+* `NAJ_MOCKING=1`: Dry-run mode. Prints the constructed `git` command to stderr instead of executing it.
 
 ## 🔒 Security Design: Blind Injection
 

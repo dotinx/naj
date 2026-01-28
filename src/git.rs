@@ -38,7 +38,7 @@ fn get_profile_path(config: &NajConfig, id: &str) -> Result<PathBuf> {
 }
 
 fn is_mocking() -> bool {
-    std::env::var("GOSH_MOCKING").is_ok()
+    std::env::var("NAJ_MOCKING").is_ok()
 }
 
 fn run_command(cmd: &mut Command) -> Result<()> {

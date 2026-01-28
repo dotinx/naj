@@ -29,7 +29,7 @@ impl Default for NajConfig {
 }
 
 pub fn get_config_root() -> Result<PathBuf> {
-    if let Ok(path) = std::env::var("GOSH_CONFIG_PATH") {
+    if let Ok(path) = std::env::var("NAJ_CONFIG_PATH") {
         return Ok(PathBuf::from(path));
     }
     let config_dir = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
@@ -54,8 +54,8 @@ fn initialize_config(root: &Path, config_path: &Path) -> Result<NajConfig> {
     fs::create_dir_all(root).context("Failed to create config root")?;
 
     // Determine default profile_dir based on environment to support testing isolation
-    let profile_dir_str = if let Ok(env_path) = std::env::var("GOSH_CONFIG_PATH") {
-         // If GOSH_CONFIG_PATH is set, default profile dir should be inside it for isolation
+    let profile_dir_str = if let Ok(env_path) = std::env::var("NAJ_CONFIG_PATH") {
+         // If NAJ_CONFIG_PATH is set, default profile dir should be inside it for isolation
          let p = PathBuf::from(env_path).join("profiles");
          // Use forward slashes for TOML consistency if possible, though PathBuf handles it.
          // On Windows, replace backslashes to avoid escape issues in TOML string if not raw
