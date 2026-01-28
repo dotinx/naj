@@ -106,7 +106,7 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
 
 fn run_exec(config: &GoshConfig, profile_id: &str, args: &[String]) -> Result<()> {
     let profile_path = get_profile_path(config, profile_id)?;
-    let injections = sanitizer::get_blind_injections();
+    let injections = sanitizer::BLIND_INJECTIONS;
     
     let mut cmd = Command::new("git");
     
@@ -188,6 +188,8 @@ fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> 
     run_command(&mut cmd)?;
     println!("Switched to profile '{}'", profile_id);
     
+    warn_if_dirty_config(profile_id)?;
+
     Ok(())
 }
 
@@ -271,4 +273,29 @@ fn extract_basename(url: &str) -> PathBuf {
     // Basename
     let path = Path::new(s);
     path.file_name().map(|n| PathBuf::from(n)).unwrap_or_else(|| PathBuf::from("repo"))
+}
+
+fn warn_if_dirty_config(profile_id: &str) -> Result<()> {
+    let config_path = Path::new(".git/config");
+    if config_path.exists() {
+        let content = std::fs::read_to_string(config_path)?;
+        
+        // Check for sections that typically contain identity or dangerous settings
+        // We look for [user], [author], [gpg] sections, or specific keys like sshCommand/gpgsign
+        let is_dirty = content.contains("[user]") 
+            || content.contains("[author]") 
+            || content.contains("[gpg]")
+            || content.contains("sshCommand")
+            || content.contains("gpgsign");
+
+        if is_dirty {
+             println!("\n⚠️  WARNING: Dirty Local Config Detected!");
+             println!("   Your .git/config contains hardcoded '[user]' or '[core]' settings.");
+             println!("   These settings (like signing keys) are merging with your profile");
+             println!("   and causing a \"Frankenstein Identity\".");
+             println!("");
+             println!("   👉 Fix it: Run 'gosh {} -f' to force clean.\n", profile_id);
+        }
+    }
+    Ok(())
 }
