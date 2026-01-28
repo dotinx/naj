@@ -70,6 +70,40 @@ fn run_command(cmd: &mut Command) -> Result<()> {
     Ok(())
 }
 
+fn get_profile_dir(config: &GoshConfig) -> Result<PathBuf> {
+    expand_path(&config.profile_dir)
+}
+
+fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
+    let output = Command::new("git")
+        .args(&["config", "--local", "--get-all", "include.path"])
+        .output()?;
+
+    if !output.status.success() {
+        return Ok(());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    for line in stdout.lines() {
+        let val = line.trim();
+        // Check if the path belongs to our profile directory
+        // We use string containment as a heuristic since paths might be canonicalized differently
+        // but typically we add absolute paths.
+        let is_gosh_profile = val.contains(&profile_dir.to_string_lossy().to_string()) 
+                              || (val.contains("/profiles/") && val.ends_with(".gitconfig"));
+
+        if is_gosh_profile {
+            let mut cmd = Command::new("git");
+            cmd.args(&["config", "--local", "--unset", "include.path", val]);
+            // We tolerate failure here (e.g. if key doesn't exist anymore for some reason)
+            let _ = cmd.output();
+        }
+    }
+    
+    Ok(())
+}
+
 fn run_exec(config: &GoshConfig, profile_id: &str, args: &[String]) -> Result<()> {
     let profile_path = get_profile_path(config, profile_id)?;
     let injections = sanitizer::get_blind_injections();
@@ -95,8 +129,16 @@ fn run_exec(config: &GoshConfig, profile_id: &str, args: &[String]) -> Result<()
 }
 
 fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> {
-    if !Path::new(".git").exists() {
-         return Err(anyhow!("Not a git repository (checked current directory)"));
+    let status = Command::new("git")
+        .args(&["rev-parse", "--is-inside-work-tree"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+
+    let is_git_repo = status.map(|s| s.success()).unwrap_or(false);
+
+    if !is_git_repo {
+         return Err(anyhow!("Not a git repository"));
     }
 
     let profile_path = get_profile_path(config, profile_id)?;
@@ -135,24 +177,16 @@ fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> 
         }
     }
     
-    // Add include path
-    // We should check if it exists? "The system SHOULD check if the include already exists"
-    // git config --get-all include.path
-    let output = Command::new("git")
-        .args(&["config", "--get-all", "include.path"])
-        .output()?;
-        
-    let current_includes = String::from_utf8_lossy(&output.stdout);
+    // 0. Clean existing gosh profiles
+    let profiles_dir = get_profile_dir(config)?;
+    clean_existing_profiles(&profiles_dir)?;
+
+    // 1. Add new profile
     let path_str = abs_profile_path.to_string_lossy();
-    
-    if !current_includes.contains(&*path_str) {
-         let mut cmd = Command::new("git");
-         cmd.args(&["config", "--add", "include.path", &path_str]);
-         run_command(&mut cmd)?;
-         println!("Switched to profile '{}'", profile_id);
-    } else {
-         println!("Profile '{}' already active", profile_id);
-    }
+    let mut cmd = Command::new("git");
+    cmd.args(&["config", "--local", "--add", "include.path", &path_str]);
+    run_command(&mut cmd)?;
+    println!("Switched to profile '{}'", profile_id);
     
     Ok(())
 }

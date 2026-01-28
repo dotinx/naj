@@ -13,8 +13,9 @@ pub fn get_blind_injections() -> Vec<(&'static str, &'static str)> {
         ("user.email", ""),
         ("user.signingkey", ""),
         ("core.sshCommand", ""),
-        ("gpg.format", ""),
-        ("gpg.ssh.program", ""),
+        ("gpg.format", "openpgp"),
+        ("gpg.ssh.program", "ssh-keygen"),
+        ("gpg.program", "gpg"),
         ("commit.gpgsign", "false"),
         ("tag.gpgsign", "false"),
     ]
