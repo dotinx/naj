@@ -12,9 +12,17 @@
 
 ## 📦 Installation
 
+### From Cargo
+
+```bash
+cargo install naj
+```
+
 ### From Source
 
 ```bash
+git clone https://github.com/dotinx/naj.git
+cd naj
 cargo install --path .
 ```
 
