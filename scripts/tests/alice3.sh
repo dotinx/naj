@@ -2,10 +2,10 @@
 set -e
 
 # --- 0. 全局配置 ---
-GOSH_CMD="gosh"
-BASE_DIR="/tmp/gosh_collab_demo"
+GOSH_CMD="naj"
+BASE_DIR="/tmp/naj_collab_demo"
 
-# 隔离 Gosh 配置
+# 隔离 Naj 配置
 export GOSH_CONFIG_PATH="$BASE_DIR/config"
 # 隔离 SSH 密钥目录
 SSH_DIR="$BASE_DIR/ssh_keys"
@@ -79,8 +79,8 @@ ssh-keygen -t ed25519 -C "bob@partner.org" -f "$SSH_DIR/id_bob" -N "" -q
 echo "bob@partner.org $(cat $SSH_DIR/id_bob.pub)" >> "$ALLOWED_SIGNERS"
 ok "Generated Bob's Key & Added to Trust Store"
 
-# --- 3. 配置 Gosh Profiles ---
-log "Configuring Gosh Profiles..."
+# --- 3. 配置 Naj Profiles ---
+log "Configuring Naj Profiles..."
 
 # --> Alice Profile
 $GOSH_CMD -c "Alice Work" "alice@contoso.com" "alice_work"
@@ -157,7 +157,7 @@ verify_last_commit "bob@partner.org" "bob_partner"
 
 # 2. Alice 临时修复 (不切换 Profile，直接用 Exec)
 # 当前 Profile 依然是 bob_partner (可以通过 .git/config 验证)
-# Alice 用 gosh alice_work exec 临时提交
+# Alice 用 naj alice_work exec 临时提交
 echo ">>> [Commit 4] Alice hotfixes via Exec Mode"
 echo "// Hotfix" >> main.rs
 git add main.rs

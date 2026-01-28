@@ -2,8 +2,8 @@
 set -e
 
 # --- 配置 ---
-GOSH_CMD="gosh"
-BASE_DIR="/tmp/gosh_edge_test"
+GOSH_CMD="naj"
+BASE_DIR="/tmp/naj_edge_test"
 export GOSH_CONFIG_PATH="$BASE_DIR/config"
 REPO_DIR="$BASE_DIR/repos"
 
@@ -30,7 +30,7 @@ mkdir -p src/deep/level
 cd src/deep/level
 
 echo "Current dir: $(pwd)"
-echo "Executing 'gosh edge' from subdirectory..."
+echo "Executing 'naj edge' from subdirectory..."
 
 # 执行 switch
 $GOSH_CMD edge
@@ -55,7 +55,7 @@ cd "$DIR_WITH_SPACE"
 git init --quiet
 
 echo "Current dir: $(pwd)"
-echo "Executing 'gosh edge'..."
+echo "Executing 'naj edge'..."
 
 $GOSH_CMD edge
 

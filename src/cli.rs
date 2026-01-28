@@ -1,7 +1,7 @@
 use clap::{Parser, Args};
 
 #[derive(Parser, Debug)]
-#[command(name = "gosh")]
+#[command(name = "naj")]
 #[command(about = "Git Operations Shell", long_about = None)]
 pub struct Cli {
     #[command(flatten)]

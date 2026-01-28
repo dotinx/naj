@@ -2,10 +2,10 @@
 set -e
 
 # --- 0. 环境与工具准备 ---
-GOSH_CMD="gosh" # 确保已编译或 alias 到 cargo run
+GOSH_CMD="naj" # 确保已编译或 alias 到 cargo run
 BASE_DIR="/tmp/alice_demo_debug"
 
-# 隔离 Gosh 配置
+# 隔离 Naj 配置
 export GOSH_CONFIG_PATH="$BASE_DIR/config"
 # 隔离 SSH 密钥目录
 SSH_DIR="$BASE_DIR/ssh_keys"
@@ -54,8 +54,8 @@ info "Generated Work Key: .../id_work"
 ssh-keygen -t ed25519 -C "alice@alice.com" -f "$SSH_DIR/id_personal" -N "" -q
 info "Generated Personal Key: .../id_personal"
 
-# --- 3. 使用 Gosh 创建 Profile ---
-log "Creating Gosh Profiles..."
+# --- 3. 使用 Naj 创建 Profile ---
+log "Creating Naj Profiles..."
 
 # 3.1 Work Profile
 $GOSH_CMD -c "Alice Work" "alice@contoso.com" "work"
@@ -94,8 +94,8 @@ log "Scenario A: Setup Mode (Work Repo)"
 cd "$REPO_DIR"
 git init --bare --quiet "backend.git"
 
-# 使用 Gosh 克隆
-info "Running: gosh work clone ..."
+# 使用 Naj 克隆
+info "Running: naj work clone ..."
 $GOSH_CMD work clone "$REPO_DIR/backend.git" work-backend
 cd work-backend
 
@@ -114,7 +114,7 @@ git init --quiet "oss-project"
 cd oss-project
 
 # 切换到 Personal
-info "Running: gosh personal (Switching...)"
+info "Running: naj personal (Switching...)"
 $GOSH_CMD personal
 
 # 提交
@@ -128,9 +128,9 @@ debug_inspect
 # === 场景 C: 临时执行与密钥隔离 (Exec Mode) ===
 log "Scenario C: Ephemeral Execution (Security Check)"
 info "Current Profile is: Personal (oss-project)"
-info "Executing 'gosh work commit' (Should use Work Identity temporarily)..."
+info "Executing 'naj work commit' (Should use Work Identity temporarily)..."
 
-# 执行 gosh work commit
+# 执行 naj work commit
 # 注意：这里我们不再重定向到 /dev/null，我们要看 git 的原生输出
 $GOSH_CMD work commit --allow-empty -m "Hotfix via Exec (Scenario C)"
 

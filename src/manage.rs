@@ -2,15 +2,15 @@ use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use crate::config::GoshConfig;
+use crate::config::NajConfig;
 use crate::utils::expand_path;
 
-fn get_profile_path(config: &GoshConfig, id: &str) -> Result<PathBuf> {
+fn get_profile_path(config: &NajConfig, id: &str) -> Result<PathBuf> {
     let profile_dir = expand_path(&config.profile_dir)?;
     Ok(profile_dir.join(format!("{}.gitconfig", id)))
 }
 
-pub fn create_profile(config: &GoshConfig, name: &str, email: &str, id: &str) -> Result<()> {
+pub fn create_profile(config: &NajConfig, name: &str, email: &str, id: &str) -> Result<()> {
     let file_path = get_profile_path(config, id)?;
     
     if file_path.exists() {
@@ -28,7 +28,7 @@ pub fn create_profile(config: &GoshConfig, name: &str, email: &str, id: &str) ->
     Ok(())
 }
 
-pub fn remove_profile(config: &GoshConfig, id: &str) -> Result<()> {
+pub fn remove_profile(config: &NajConfig, id: &str) -> Result<()> {
     let file_path = get_profile_path(config, id)?;
     
     if !file_path.exists() {
@@ -40,7 +40,7 @@ pub fn remove_profile(config: &GoshConfig, id: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn edit_profile(config: &GoshConfig, id: &str) -> Result<()> {
+pub fn edit_profile(config: &NajConfig, id: &str) -> Result<()> {
     let file_path = get_profile_path(config, id)?;
     
     if !file_path.exists() {
@@ -60,7 +60,7 @@ pub fn edit_profile(config: &GoshConfig, id: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn list_profiles(config: &GoshConfig) -> Result<()> {
+pub fn list_profiles(config: &NajConfig) -> Result<()> {
     let profile_dir = expand_path(&config.profile_dir)?;
     
     if !profile_dir.exists() {

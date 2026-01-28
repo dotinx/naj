@@ -11,19 +11,19 @@ pub struct Strategies {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GoshConfig {
+pub struct NajConfig {
     pub strategies: Strategies,
     pub profile_dir: String,
 }
 
-impl Default for GoshConfig {
+impl Default for NajConfig {
     fn default() -> Self {
-        GoshConfig {
+        NajConfig {
             strategies: Strategies {
                 clone: "INCLUDE".to_string(), 
                 switch: "include".to_string(), 
             },
-            profile_dir: "~/.config/gosh/profiles".to_string(),
+            profile_dir: "~/.config/naj/profiles".to_string(),
         }
     }
 }
@@ -33,23 +33,23 @@ pub fn get_config_root() -> Result<PathBuf> {
         return Ok(PathBuf::from(path));
     }
     let config_dir = dirs::config_dir().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
-    Ok(config_dir.join("gosh"))
+    Ok(config_dir.join("naj"))
 }
 
-pub fn load_config() -> Result<GoshConfig> {
+pub fn load_config() -> Result<NajConfig> {
     let root = get_config_root()?;
-    let config_path = root.join("gosh.toml");
+    let config_path = root.join("naj.toml");
 
     if !config_path.exists() {
         return initialize_config(&root, &config_path);
     }
 
     let content = fs::read_to_string(&config_path).context("Failed to read config file")?;
-    let config: GoshConfig = toml::from_str(&content).context("Failed to parse config file")?;
+    let config: NajConfig = toml::from_str(&content).context("Failed to parse config file")?;
     Ok(config)
 }
 
-fn initialize_config(root: &Path, config_path: &Path) -> Result<GoshConfig> {
+fn initialize_config(root: &Path, config_path: &Path) -> Result<NajConfig> {
     // Ensure root exists
     fs::create_dir_all(root).context("Failed to create config root")?;
 
@@ -62,7 +62,7 @@ fn initialize_config(root: &Path, config_path: &Path) -> Result<GoshConfig> {
          // We'll just rely on to_string_lossy but be careful with escaping in the format macro
          p.to_string_lossy().to_string()
     } else {
-         "~/.config/gosh/profiles".to_string()
+         "~/.config/naj/profiles".to_string()
     };
 
     // Use toml serialization to ensure string is escaped properly? 
@@ -70,7 +70,7 @@ fn initialize_config(root: &Path, config_path: &Path) -> Result<GoshConfig> {
     // If path contains backslashes (Windows), we need to escape them for the TOML string literal: "C:\\Foo"
     let escaped_profile_dir = profile_dir_str.replace("\\", "\\\\");
 
-    let generated_toml = format!(r#"# Gosh Configuration
+    let generated_toml = format!(r#"# Naj Configuration
 
 profile_dir = "{}"
 
@@ -85,6 +85,6 @@ switch = "include" # Soft strategy
     let expanded_profile_dir = expand_path(&profile_dir_str)?;
     fs::create_dir_all(&expanded_profile_dir).context("Failed to create profiles directory")?;
 
-    let config: GoshConfig = toml::from_str(&generated_toml)?;
+    let config: NajConfig = toml::from_str(&generated_toml)?;
     Ok(config)
 }

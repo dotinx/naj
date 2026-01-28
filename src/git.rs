@@ -1,4 +1,4 @@
-use crate::config::GoshConfig;
+use crate::config::NajConfig;
 use crate::sanitizer;
 use crate::utils::expand_path;
 use anyhow::{Result, anyhow, Context};
@@ -11,7 +11,7 @@ enum Action {
     Switch,
 }
 
-pub fn run(config: &GoshConfig, profile_id: &str, args: &[String], force: bool) -> Result<()> {
+pub fn run(config: &NajConfig, profile_id: &str, args: &[String], force: bool) -> Result<()> {
     // Determine Action
     let action = if args.is_empty() {
         Action::Switch
@@ -28,7 +28,7 @@ pub fn run(config: &GoshConfig, profile_id: &str, args: &[String], force: bool) 
     }
 }
 
-fn get_profile_path(config: &GoshConfig, id: &str) -> Result<PathBuf> {
+fn get_profile_path(config: &NajConfig, id: &str) -> Result<PathBuf> {
     let profile_dir = expand_path(&config.profile_dir)?;
     let p = profile_dir.join(format!("{}.gitconfig", id));
     if !p.exists() {
@@ -70,7 +70,7 @@ fn run_command(cmd: &mut Command) -> Result<()> {
     Ok(())
 }
 
-fn get_profile_dir(config: &GoshConfig) -> Result<PathBuf> {
+fn get_profile_dir(config: &NajConfig) -> Result<PathBuf> {
     expand_path(&config.profile_dir)
 }
 
@@ -90,10 +90,10 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
         // Check if the path belongs to our profile directory
         // We use string containment as a heuristic since paths might be canonicalized differently
         // but typically we add absolute paths.
-        let is_gosh_profile = val.contains(&profile_dir.to_string_lossy().to_string()) 
+        let is_naj_profile = val.contains(&profile_dir.to_string_lossy().to_string()) 
                               || (val.contains("/profiles/") && val.ends_with(".gitconfig"));
 
-        if is_gosh_profile {
+        if is_naj_profile {
             let mut cmd = Command::new("git");
             cmd.args(&["config", "--local", "--unset", "include.path", val]);
             // We tolerate failure here (e.g. if key doesn't exist anymore for some reason)
@@ -108,7 +108,7 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_exec(config: &GoshConfig, profile_id: &str, args: &[String]) -> Result<()> {
+fn run_exec(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()> {
     let profile_path = get_profile_path(config, profile_id)?;
     let injections = sanitizer::BLIND_INJECTIONS;
     
@@ -132,7 +132,7 @@ fn run_exec(config: &GoshConfig, profile_id: &str, args: &[String]) -> Result<()
     run_command(&mut cmd)
 }
 
-fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> {
+fn run_switch(config: &NajConfig, profile_id: &str, force: bool) -> Result<()> {
     let status = Command::new("git")
         .args(&["rev-parse", "--is-inside-work-tree"])
         .stdout(std::process::Stdio::null())
@@ -189,7 +189,7 @@ fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> 
         }
     }
     
-    // 0. Clean existing gosh profiles
+    // 0. Clean existing naj profiles
     let profiles_dir = get_profile_dir(config)?;
     clean_existing_profiles(&profiles_dir)?;
 
@@ -205,7 +205,7 @@ fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> 
     Ok(())
 }
 
-fn run_setup(config: &GoshConfig, profile_id: &str, args: &[String]) -> Result<()> {
+fn run_setup(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()> {
     // 1. Pass raw args to git (no injection)
     let mut cmd = Command::new("git");
     cmd.args(args);
@@ -306,7 +306,7 @@ fn warn_if_dirty_config(profile_id: &str) -> Result<()> {
              println!("   These settings (like signing keys) are merging with your profile");
              println!("   and causing a \"Frankenstein Identity\".");
              println!("");
-             println!("   👉 Fix it: Run 'gosh {} -f' to force clean.\n", profile_id);
+             println!("   👉 Fix it: Run 'naj {} -f' to force clean.\n", profile_id);
         }
     }
     Ok(())

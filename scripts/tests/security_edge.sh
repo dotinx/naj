@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # --- 准备 ---
-GOSH_CMD="gosh" # 确保已编译或 alias
-BASE_DIR="/tmp/gosh_security_test"
+GOSH_CMD="naj" # 确保已编译或 alias
+BASE_DIR="/tmp/naj_security_test"
 UNSAFE_REPO="$BASE_DIR/root_owned_repo"
 
 # 1. 初始化一个归属于 root 的仓库 (对当前用户来说是不安全的)
@@ -17,14 +17,14 @@ sudo touch "$UNSAFE_REPO/testfile"
 # 确保当前用户对目录有读写权限(以便能进入)，但 .git 依然属于 root
 sudo chmod -R 777 "$UNSAFE_REPO"
 
-echo "[TEST] Running 'gosh' in a dubious ownership repo..."
+echo "[TEST] Running 'naj' in a dubious ownership repo..."
 cd "$UNSAFE_REPO"
 
-# 2. 尝试运行 gosh (期望失败)
+# 2. 尝试运行 naj (期望失败)
 if $GOSH_CMD -l > /dev/null 2>&1; then
-    # 注意：gosh -l 不需要 git 仓库，所以应该成功。
+    # 注意：naj -l 不需要 git 仓库，所以应该成功。
     # 我们需要测 switch 或 exec，这需要 git 上下文
-    echo "  (gosh list works, which is fine)"
+    echo "  (naj list works, which is fine)"
 fi
 
 echo "Attempting to switch profile..."
@@ -33,13 +33,13 @@ OUTPUT=$($GOSH_CMD testprofile 2>&1 || true)
 
 # 3. 验证结果
 if echo "$OUTPUT" | grep -q "fatal: detected dubious ownership"; then
-    echo "✅ PASS: Gosh propagated Git's security error."
+    echo "✅ PASS: Naj propagated Git's security error."
     echo "   Git said: 'detected dubious ownership'"
-    echo "   Gosh refused to act."
+    echo "   Naj refused to act."
 elif echo "$OUTPUT" | grep -q "Not a git repository"; then
-    echo "✅ PASS: Gosh treated it as invalid (Git rev-parse failed)."
+    echo "✅ PASS: Naj treated it as invalid (Git rev-parse failed)."
 else
-    echo "❌ FAIL: Gosh tried to execute! This is dangerous."
+    echo "❌ FAIL: Naj tried to execute! This is dangerous."
     echo "Output was: $OUTPUT"
     exit 1
 fi

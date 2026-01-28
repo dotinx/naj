@@ -1,10 +1,10 @@
-# Gosh Integration & Scenario Tests
+# Naj Integration & Scenario Tests
 
-This directory contains the integration test suite and scenario simulations for `gosh`. These scripts are designed to validate the core functionality, security isolation, and developer workflows in a controlled, sandbox environment.
+This directory contains the integration test suite and scenario simulations for `naj`. These scripts are designed to validate the core functionality, security isolation, and developer workflows in a controlled, sandbox environment.
 
 ## Overview
 
-The tests in this directory focus on end-to-end (E2E) validation, ensuring that `gosh` correctly interacts with Git configurations, SSH keys, and system environments without contaminating the user's global settings.
+The tests in this directory focus on end-to-end (E2E) validation, ensuring that `naj` correctly interacts with Git configurations, SSH keys, and system environments without contaminating the user's global settings.
 
 ## Test Matrix
 
@@ -21,7 +21,7 @@ The tests in this directory focus on end-to-end (E2E) validation, ensuring that 
 To run these tests locally, ensure you have the following installed:
 - **Bash**: Most scripts use standard Bash features.
 - **Git**: Version 2.34+ is required for SSH signing tests.
-- **Gosh**: The `gosh` binary must be available in your PATH or accessible via the `GOSH_CMD` environment variable.
+- **Naj**: The `naj` binary must be available in your PATH or accessible via the `GOSH_CMD` environment variable.
 
 ## Running Tests
 
@@ -42,7 +42,7 @@ You can run individual test scripts directly:
 bash scripts/tests/alice.sh
 ```
 
-Each script initializes a sandbox in `/tmp/gosh_test_*` or similar, ensuring that your `~/.gitconfig` and `~/.ssh` remain untouched.
+Each script initializes a sandbox in `/tmp/naj_test_*` or similar, ensuring that your `~/.gitconfig` and `~/.ssh` remain untouched.
 
 ## Design Principles
 

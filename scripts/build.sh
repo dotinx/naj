@@ -2,7 +2,7 @@
 set -e  # 遇到错误立即停止
 
 # --- 配置部分 ---
-APP_NAME="gosh"
+APP_NAME="naj"
 OUTPUT_DIR="dist"
 # 新增：获取 dist 目录的绝对物理路径
 mkdir -p "$OUTPUT_DIR"
@@ -65,7 +65,7 @@ for target in "${TARGETS[@]}"; do
         exit 1
     fi
 
-    # 3. 打包文件名格式: gosh-v0.1.0-x86_64-unknown-linux-musl.tar.gz
+    # 3. 打包文件名格式: naj-v0.1.0-x86_64-unknown-linux-musl.tar.gz
     ARCHIVE_NAME="${APP_NAME}-v${VERSION}-${target}"
 
     # 进入输出目录进行打包操作
