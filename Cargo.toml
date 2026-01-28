@@ -1,7 +1,16 @@
 [package]
 name = "naj"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
+description = "Manage your digital selves. (Derived from Old Chinese /*ŋˤajʔ/ 'I/Me')"
+authors = ["INX <inx@inx.wf>"]
+license = "BSD-2-Clause"
+readme = "README.md"
+homepage = "https://github.com/dotinx/naj"
+repository = "https://github.com/dotinx/naj"
+categories = ["command-line-utilities", "development-tools::cargo-plugins"]
+exclude = ["tests/", "scripts/",]
+
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -11,8 +20,8 @@ dirs = "5.0"
 anyhow = "1.0"
 
 [dev-dependencies]
-assert_cmd = "2.0"
-tempfile = "3.10"
+assert_cmd = "2.1"
+tempfile = "3.24"
 predicates = "3.1"
 
 [[bin]]
