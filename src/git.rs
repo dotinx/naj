@@ -97,7 +97,11 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
             let mut cmd = Command::new("git");
             cmd.args(&["config", "--local", "--unset", "include.path", val]);
             // We tolerate failure here (e.g. if key doesn't exist anymore for some reason)
-            let _ = cmd.output();
+            if is_mocking() {
+                eprintln!("[DRY-RUN] {:?}", cmd);
+            } else {
+                let _ = cmd.output();
+            }
         }
     }
     
@@ -165,7 +169,11 @@ fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> 
             let mut cmd = Command::new("git");
             cmd.args(&["config", "--remove-section", section]);
             // Ignore errors
-            let _ = cmd.output(); 
+            if is_mocking() {
+                eprintln!("[DRY-RUN] {:?}", cmd);
+            } else {
+                let _ = cmd.output(); 
+            }
         }
         
         // Unset keys
@@ -173,7 +181,11 @@ fn run_switch(config: &GoshConfig, profile_id: &str, force: bool) -> Result<()> 
         for key in keys {
              let mut cmd = Command::new("git");
              cmd.args(&["config", "--unset", key]);
-             let _ = cmd.output();
+             if is_mocking() {
+                 eprintln!("[DRY-RUN] {:?}", cmd);
+             } else {
+                 let _ = cmd.output();
+             }
         }
     }
     
