@@ -2,7 +2,9 @@
 
 ![Naj Banner](assets/naj-banner.jpg)
 
-**Naj** is a lightweight, secure, and idempotent wrapper for Git, written in Rust. It solves the chaos of managing multiple Git identities (Work vs. Personal) by strictly isolating configurations and preventing accidental identity leaks.
+**Naj** (/*ŋˤajʔ/ 'I/Me') helps you manage multiple Git identities (Work, Personal, Open Source) without messing up your local config or SSH keys.
+
+It ensures that the correct email, signing key, and SSH command are used for every commit.
 
 ## 🚀 Features
 
@@ -30,9 +32,28 @@ cargo install --path .
 
 ## 📖 Usage
 
-### 1. Management: Create Identities
+```bash
+naj [OPTIONS] [PROFILE_ID] [GIT_ARGS]...
+```
 
-Naj manages identities as "Profiles".
+### Arguments
+
+* `[PROFILE_ID]`: The Profile ID to switch to (e.g., 'work', 'personal').
+* `[GIT_ARGS]...`: Git arguments to execute immediately after switching (Exec mode).
+
+### Options
+
+* `-c, --create <NAME> <EMAIL> <ID>`: Create a new profile interactively or with arguments.
+* `-l, --list`: List all available profiles.
+* `-r, --remove <ID>`: Remove a profile by ID.
+* `-f, --force`: Force switch strategy (Perform Hard Clean). This aggressively sanitizes `.git/config` before applying the profile.
+* `--completion <SHELL>`: Generate shell completion script. Supported shells: `bash`, `elvish`, `fish`, `powershell`, `zsh`.
+* `-h, --help`: Print help.
+* `-V, --version`: Print version.
+
+## 💡 Examples
+
+### 1. Management: Create & Remove Identities
 
 ```bash
 # Syntax: naj -c <Name> <Email> <ProfileID>
@@ -42,12 +63,11 @@ naj -c "Alice Hobby" "alice@gmail.com" "personal"
 # List all profiles
 naj -l
 
-# Edit a profile (e.g., to add signingkey or sshCommand)
-naj -e work
-
+# Remove a profile
+naj -r work
 ```
 
-### 2. Workflow A: Setup New Projects (Recommended)
+### 2. Setup New Projects
 
 When you clone or init a repository, Naj automatically sets up the local config.
 
@@ -58,10 +78,9 @@ naj work clone git@github.com:company/backend.git
 # Inside the repo, you can now just use standard git
 cd backend
 git config user.email # Output: alice@company.com
-
 ```
 
-### 3. Workflow B: One-off Commands (Exec Mode)
+### 3. One-off Commands (Exec Mode)
 
 Run a command with a specific identity *without* modifying the repository config.
 
@@ -71,10 +90,9 @@ naj personal commit -m "Fix typo"
 
 # Verification
 naj personal config user.email
-
 ```
 
-### 4. Workflow C: Switch Identity (Persistent)
+### 4. Switch Identity (Persistent)
 
 Change the identity bound to an existing repository.
 
@@ -84,7 +102,13 @@ naj work
 
 # If the repo has "dirty" config (manually set user.name), force overwrite it:
 naj work -f
+```
 
+### Shell Completion
+
+```bash
+# Enable zsh completion
+source <(naj --completion zsh)
 ```
 
 ## ⚙️ Configuration
