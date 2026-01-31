@@ -1,9 +1,10 @@
-use crate::config::NajConfig;
+use crate::config::{NajConfig, SwitchStrategy};
+use crate::naj_debug;
 use crate::sanitizer;
 use crate::utils::expand_path;
-use anyhow::{Result, anyhow, Context};
-use std::process::Command;
+use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 enum Action {
     Setup,
@@ -12,7 +13,6 @@ enum Action {
 }
 
 pub fn run(config: &NajConfig, profile_id: &str, args: &[String], force: bool) -> Result<()> {
-    // Determine Action
     let action = if args.is_empty() {
         Action::Switch
     } else if args[0] == "clone" || args[0] == "init" {
@@ -28,6 +28,7 @@ pub fn run(config: &NajConfig, profile_id: &str, args: &[String], force: bool) -
     }
 }
 
+// Helper to construct the full path to a profile's .gitconfig file.
 fn get_profile_path(config: &NajConfig, id: &str) -> Result<PathBuf> {
     let profile_dir = expand_path(&config.profile_dir)?;
     let p = profile_dir.join(format!("{}.gitconfig", id));
@@ -41,30 +42,14 @@ fn is_mocking() -> bool {
     std::env::var("NAJ_MOCKING").is_ok()
 }
 
+// Execution helper that handles dry-runs during testing.
 fn run_command(cmd: &mut Command) -> Result<()> {
     if is_mocking() {
         eprintln!("[DRY-RUN] {:?}", cmd);
         return Ok(());
     }
-
-    // inherit stdio
-    // But cmd is passed in.
-    // The requirement says "The process MUST inherit stdin/stdout/stderr"
-    // We assume the caller sets that up or we do it here?
-    // Command default is NOT inherit.
-    // We should set it before calling this wrapper or inside.
-    // Let's set it inside but we need to modify cmd.
-    // actually, std::process::Command methods like spawn or status need to be called.
-    
-    // We can't easily iterate args from Command generic debug, but checking env var is enough.
-    // Let's assume the caller constructs the command and we run it.
-    
     let status = cmd.status().context("Failed to execute git command")?;
     if !status.success() {
-        // We might not want to error hard if git fails, just propagate exit code?
-        // But anyhow::Result implies error.
-        // For CLI tools, usually we want to return the exact exit code.
-        // But for now, let's just return Error if failed.
         return Err(anyhow!("Git command exited with status: {}", status));
     }
     Ok(())
@@ -74,6 +59,8 @@ fn get_profile_dir(config: &NajConfig) -> Result<PathBuf> {
     expand_path(&config.profile_dir)
 }
 
+// Locates and removes existing Naj profile inclusions from the local git config
+// to prevent configuration pollution or conflicts.
 fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
     let output = Command::new("git")
         .args(&["config", "--local", "--get-all", "include.path"])
@@ -84,19 +71,19 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
     for line in stdout.lines() {
         let val = line.trim();
-        // Check if the path belongs to our profile directory
-        // We use string containment as a heuristic since paths might be canonicalized differently
-        // but typically we add absolute paths.
-        let is_naj_profile = val.contains(&profile_dir.to_string_lossy().to_string()) 
-                              || (val.contains("/profiles/") && val.ends_with(".gitconfig"));
+        let path_obj = Path::new(val);
+        let match_path = val.contains(&profile_dir.to_string_lossy().to_string())
+            || (val.contains("/profiles/") && val.ends_with(".gitconfig"));
+        let match_name = path_obj
+            .file_name()
+            .map(|n| n.to_string_lossy().ends_with(".gitconfig"))
+            .unwrap_or(false);
 
-        if is_naj_profile {
+        if match_path || match_name {
             let mut cmd = Command::new("git");
             cmd.args(&["config", "--local", "--unset", "include.path", val]);
-            // We tolerate failure here (e.g. if key doesn't exist anymore for some reason)
             if is_mocking() {
                 eprintln!("[DRY-RUN] {:?}", cmd);
             } else {
@@ -104,31 +91,63 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
             }
         }
     }
-    
+    Ok(())
+}
+
+fn apply_profile_override(profile_path: &Path) -> Result<()> {
+    // Use git config -f to read values directly from the file, bypassing
+    // any environment or global overrides for consistency.
+    let output = Command::new("git")
+        .args(&["config", "-f", &profile_path.to_string_lossy(), "--list"])
+        .output()
+        .with_context(|| format!("Failed to read profile config from {:?}", profile_path))?;
+
+    if !output.status.success() {
+        return Err(anyhow!(
+            "Git config read failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // For Override strategies, we manually inject values into the local config
+    // to strictly enforce the profile's settings.
+    for line in stdout.lines() {
+        if let Some((key, value)) = line.split_once('=') {
+            let mut cmd = Command::new("git");
+            cmd.args(&["config", "--local", key, value]);
+            run_command(&mut cmd)?;
+        }
+    }
+
     Ok(())
 }
 
 fn run_exec(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()> {
     let profile_path = get_profile_path(config, profile_id)?;
-    let injections = sanitizer::BLIND_INJECTIONS;
-    
     let mut cmd = Command::new("git");
-    
-    // Layer 1: Sanitization
-    for (k, v) in injections {
-        cmd.arg("-c").arg(format!("{}={}", k, v));
-    }
-    
-    // Layer 2: Profile
-    cmd.arg("-c").arg(format!("include.path={}", profile_path.to_string_lossy()));
-    
-    // Layer 3: User Command
-    cmd.args(args);
-    
-    cmd.stdin(std::process::Stdio::inherit())
-       .stdout(std::process::Stdio::inherit())
-       .stderr(std::process::Stdio::inherit());
 
+    // 1. Sensitize defaults to prevent leakages if not explicitly covered by the profile
+    for (k, v) in sanitizer::BLIND_INJECTIONS {
+        cmd.args(&["-c", &format!("{}={}", k, v)]);
+    }
+
+    // 2. Attach profile via git's native include path for most operations
+    cmd.args(&[
+        "-c",
+        &format!("include.path={}", profile_path.to_string_lossy()),
+    ]);
+
+    // 3. Force-inject profile values to ensure they override any local config
+    // that might conflict with the base inclusion.
+    if let Ok(entries) = read_profile_config(&profile_path) {
+        for (k, v) in entries {
+            cmd.args(&["-c", &format!("{}={}", k, v)]);
+        }
+    }
+
+    cmd.args(args);
     run_command(&mut cmd)
 }
 
@@ -140,173 +159,230 @@ fn run_switch(config: &NajConfig, profile_id: &str, force: bool) -> Result<()> {
         .status();
 
     let is_git_repo = status.map(|s| s.success()).unwrap_or(false);
-
     if !is_git_repo {
-         return Err(anyhow!("Not a git repository"));
+        return Err(anyhow!("Not a git repository"));
     }
 
     let profile_path = get_profile_path(config, profile_id)?;
-    // Use absolute path for include to avoid issues if we move around?
-    // The requirement just says <PATH_TO_PROFILE>.
-    // Usually absolute path is best for git config include.path.
     let abs_profile_path = if profile_path.is_absolute() {
         profile_path
     } else {
         std::env::current_dir()?.join(profile_path)
     };
-    
-    // Strategy determination
-    let strategy = if force {
-        "HARD".to_string()
-    } else {
-        config.strategies.switch.to_uppercase()
+
+    // 1. Resolve Effective Strategy
+    let base_strategy = config.strategies.switch;
+    let effective_strategy = match (force, base_strategy) {
+        (true, SwitchStrategy::IncludeSoft) => SwitchStrategy::IncludeHard,
+        (true, SwitchStrategy::OverrideSoft) => SwitchStrategy::OverrideHard,
+        (false, s) => s,
+        _ => SwitchStrategy::IncludeHard, // Fallback
     };
-    
-    if strategy == "HARD" {
+
+    // Log the resolved strategy for trace visibility in debug mode
+    naj_debug!(
+        "Strategy Resolution: Base={:?}, Force={}, Effective={:?}",
+        base_strategy,
+        force,
+        effective_strategy
+    );
+
+    // Hard strategies require a clean slate to ensure security and privacy
+    let should_sanitize = matches!(
+        effective_strategy,
+        SwitchStrategy::IncludeHard | SwitchStrategy::OverrideHard
+    );
+
+    naj_debug!("Should Sanitize? {}", should_sanitize);
+
+    if should_sanitize {
         // Remove sections
         let sections = sanitizer::BLACKLIST_SECTIONS;
         for section in sections {
             let mut cmd = Command::new("git");
-            cmd.args(&["config", "--remove-section", section]);
-            // Ignore errors
+
+            // Explicitly target local config and dereference section name for type safety
+            cmd.args(&["config", "--local", "--remove-section", *section]);
+
             if is_mocking() {
                 eprintln!("[DRY-RUN] {:?}", cmd);
             } else {
-                let _ = cmd.output(); 
+                naj_debug!("Executing sanitize: {:?}", cmd);
+                let output = cmd
+                    .output()
+                    .context(format!("Failed to attempt removing section {}", section))?;
+
+                // Exit code 1 means "section not found" (benign).
+                // We only care about other errors.
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    // Git exit code 1 usually means a section or key was not found,
+                    // which is expected if the config is already clean.
+                    let is_benign =
+                        output.status.code() == Some(1) || stderr.contains("no such section");
+
+                    if !is_benign {
+                        return Err(anyhow!(
+                            "Failed to remove section '{}': {}",
+                            section,
+                            stderr.trim()
+                        ));
+                    }
+                }
             }
         }
-        
+
+        // Wipe 'include' section to prevent residual profile links in Hard mode
+        let mut cmd = Command::new("git");
+        cmd.args(&["config", "--local", "--remove-section", "include"]);
+        if is_mocking() {
+            eprintln!("[DRY-RUN] {:?}", cmd);
+        } else {
+            // Success is not critical here as a missing section is already 'clean'
+            let _ = cmd.output();
+        }
+
         // Unset keys
         let keys = sanitizer::BLACKLIST_KEYS;
         for key in keys {
-             let mut cmd = Command::new("git");
-             cmd.args(&["config", "--unset", key]);
-             if is_mocking() {
-                 eprintln!("[DRY-RUN] {:?}", cmd);
-             } else {
-                 let _ = cmd.output();
-             }
+            let mut cmd = Command::new("git");
+            cmd.args(&["config", "--local", "--unset-all", *key]); // 👈 deref here too
+
+            if is_mocking() {
+                eprintln!("[DRY-RUN] {:?}", cmd);
+            } else {
+                let _ = cmd.output();
+            }
         }
     }
-    
-    // 0. Clean existing naj profiles
+
+    // Clean orphaned Naj profile references before applying a new one
     let profiles_dir = get_profile_dir(config)?;
     clean_existing_profiles(&profiles_dir)?;
 
-    // 1. Add new profile
-    let path_str = abs_profile_path.to_string_lossy();
-    let mut cmd = Command::new("git");
-    cmd.args(&["config", "--local", "--add", "include.path", &path_str]);
-    run_command(&mut cmd)?;
+    match effective_strategy {
+        SwitchStrategy::IncludeSoft | SwitchStrategy::IncludeHard => {
+            let path_str = abs_profile_path.to_string_lossy();
+            let mut cmd = Command::new("git");
+            cmd.args(&["config", "--local", "--add", "include.path", &path_str]);
+            run_command(&mut cmd)?;
+        }
+        SwitchStrategy::OverrideSoft | SwitchStrategy::OverrideHard => {
+            apply_profile_override(&abs_profile_path)?;
+        }
+    }
     println!("Switched to profile '{}'", profile_id);
-    
-    warn_if_dirty_config(profile_id)?;
+
+    warn_if_dirty_config(profile_id, effective_strategy)?;
 
     Ok(())
 }
 
 fn run_setup(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()> {
-    // 1. Pass raw args to git (no injection)
+    // Execute the base command (init/clone) before applying Naj customization
     let mut cmd = Command::new("git");
     cmd.args(args);
-    cmd.stdin(std::process::Stdio::inherit())
-       .stdout(std::process::Stdio::inherit())
-       .stderr(std::process::Stdio::inherit());
-       
-    // Check if dry run? setup actions have side effects (creating dirs).
-    // If mocking, we print validation and skip real execution of git?
-    
-    if is_mocking() {
-        eprintln!("[DRY-RUN] {:?}", cmd);
-        // We can't really continue to infer directory if we don't run it?
-        // But for testing logic, we might want to see what happens next.
-        // However, if git clone doesn't run, the dir won't exist for switch mode check.
+    run_command(&mut cmd)?;
+
+    if args.is_empty() {
         return Ok(());
     }
 
-    let status = cmd.status().context("Failed to execute git setup command")?;
-    if !status.success() {
-        return Err(anyhow!("Git setup command failed"));
-    }
+    let command = &args[0];
 
-    // 2. Infer target directory
-    // Last arg analysis
-    if let Some(last_arg) = args.last() {
-        let target_dir = if !is_git_url(last_arg) && args.len() > 1 {
-            // Case A: Explicit Directory
-            // "If the last argument does not look like a Git URL ... treat it as the Target Directory"
-            // Wait, "clone <url> <dir>" -> last arg is dir.
-            // "clone <url>" -> last arg is url.
-            // So we check if it LOOKS like a URL.
-            PathBuf::from(last_arg)
+    // 2. Switch context if needed
+    if command == "init" {
+        // Init happens in current dir
+        run_switch(config, profile_id, false)?;
+    } else if command == "clone" {
+        // Parse target directory from clone arguments while ignoring flags (e.g., --depth)
+        let mut url = None;
+        let mut explicit_dir = None;
+
+        // Skip 'clone'
+        for arg in args.iter().skip(1) {
+            if arg.starts_with('-') {
+                continue;
+            }
+            if url.is_none() {
+                url = Some(arg);
+            } else if explicit_dir.is_none() {
+                explicit_dir = Some(arg);
+            }
+        }
+
+        let target_dir = if let Some(dir) = explicit_dir {
+            PathBuf::from(dir)
+        } else if let Some(u) = url {
+            extract_basename(u)
         } else {
-            // Case B: Implicit Directory
-            // Extract basename
-            let url = last_arg; 
-            // Remove checks for safety?
-             extract_basename(url)
+            // Default name if it cannot be inferred from the URL
+            PathBuf::from("repo")
         };
-        
-        println!("Detected target directory: {:?}", target_dir);
-        
-        // 3. Switch mode on new directory
-        let cwd = std::env::current_dir()?;
-        let repo_path = cwd.join(&target_dir);
-        
-        if repo_path.exists() && repo_path.join(".git").exists() {
-            std::env::set_current_dir(&repo_path)?;
-            // Force Hard switch
-            run_switch(config, profile_id, true)?;
-        } else {
-             eprintln!("Warning: Could not find repository at {:?} to apply profile", repo_path);
+
+        if target_dir.exists() && target_dir.is_dir() {
+            std::env::set_current_dir(&target_dir)?;
+            run_switch(config, profile_id, false)?;
         }
     }
 
     Ok(())
 }
 
-fn is_git_url(s: &str) -> bool {
-    s.starts_with("http://") || 
-    s.starts_with("https://") || 
-    s.starts_with("git@") || 
-    s.starts_with("ssh://") ||
-    s.contains('@') || // scp-like syntax user@host:path
-    s.contains(':')    // scp-like syntax host:path (but http has : too)
-    // The requirement says: "(does not start with http://, https://, git@, ssh://, and contains no @ or :)"
+fn read_profile_config(profile_path: &Path) -> Result<Vec<(String, String)>> {
+    let output = Command::new("git")
+        .args(&["config", "-f", &profile_path.to_string_lossy(), "--list"])
+        .output()
+        .with_context(|| format!("Failed to read profile config from {:?}", profile_path))?;
+
+    if !output.status.success() {
+        return Err(anyhow!("Git config read failed"));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut entries = Vec::new();
+    for line in stdout.lines() {
+        if let Some((key, value)) = line.split_once('=') {
+            entries.push((key.to_string(), value.to_string()));
+        }
+    }
+    Ok(entries)
 }
 
 fn extract_basename(url: &str) -> PathBuf {
-    // Remove trailing slash
     let mut s = url.trim_end_matches('/');
-    // Remove .git suffix
     if s.ends_with(".git") {
         s = &s[..s.len() - 4];
     }
-    // Basename
-    let path = Path::new(s);
-    path.file_name().map(|n| PathBuf::from(n)).unwrap_or_else(|| PathBuf::from("repo"))
+    Path::new(s)
+        .file_name()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("repo"))
 }
 
-fn warn_if_dirty_config(profile_id: &str) -> Result<()> {
+fn warn_if_dirty_config(_profile_id: &str, strategy: SwitchStrategy) -> Result<()> {
+    // Check for local configuration that might leak identity or signing info
+    // when using an 'Include' strategy.
     let config_path = Path::new(".git/config");
     if config_path.exists() {
         let content = std::fs::read_to_string(config_path)?;
-        
-        // Check for sections that typically contain identity or dangerous settings
-        // We look for [user], [author], [gpg] sections, or specific keys like sshCommand/gpgsign
-        let is_dirty = content.contains("[user]") 
-            || content.contains("[author]") 
-            || content.contains("[gpg]")
+        let check_user_block = matches!(
+            strategy,
+            SwitchStrategy::IncludeSoft | SwitchStrategy::IncludeHard
+        );
+        let mut is_dirty = false;
+        if check_user_block && (content.contains("[user]") || content.contains("[author]")) {
+            is_dirty = true;
+        }
+        if content.contains("[gpg]")
             || content.contains("sshCommand")
-            || content.contains("gpgsign");
-
+            || content.contains("gpgsign")
+        {
+            is_dirty = true;
+        }
         if is_dirty {
-             println!("\n⚠️  WARNING: Dirty Local Config Detected!");
-             println!("   Your .git/config contains hardcoded '[user]' or '[core]' settings.");
-             println!("   These settings (like signing keys) are merging with your profile");
-             println!("   and causing a \"Frankenstein Identity\".");
-             println!("");
-             println!("   👉 Fix it: Run 'naj {} -f' to force clean.\n", profile_id);
+            println!("\n⚠️  WARNING: Dirty Local Config Detected!");
+            // ...
         }
     }
     Ok(())

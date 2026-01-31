@@ -1,8 +1,8 @@
 mod cli;
 mod config;
+mod git;
 mod manage;
 mod sanitizer;
-mod git;
 mod utils;
 
 use anyhow::Result;
@@ -24,8 +24,10 @@ fn main() -> Result<()> {
             manage::list_profiles(&config)?;
         }
     } else {
-        // Operation mode
-        let profile_id = cli.profile_id.as_ref().expect("Profile ID required in operation mode");
+        let profile_id = cli
+            .profile_id
+            .as_ref()
+            .expect("Profile ID required in operation mode");
         let git_args = &cli.git_args;
         git::run(&config, profile_id, git_args, cli.force)?;
     }

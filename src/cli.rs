@@ -1,4 +1,4 @@
-use clap::{Parser, Args};
+use clap::{Args, Parser};
 
 #[derive(Parser, Debug)]
 #[command(name = "naj")]
@@ -7,16 +7,14 @@ pub struct Cli {
     #[command(flatten)]
     pub manage: Option<ManageFlags>,
 
-    // Operation mode args
-    // We make profile_id optional so manage flags can exist without it, 
-    // but check constraints in main or via clap attributes if possible.
-    // required_unless_present("manage_group") makes it required if no manage flag is set.
+    // profile_id is optional to allow manage flags to operate independently,
+    // but is required during standard operations (via required_unless_present).
     #[arg(required_unless_present("manage_group"))]
     pub profile_id: Option<String>,
 
     #[arg(allow_hyphen_values = true)]
     pub git_args: Vec<String>,
-    
+
     #[arg(short, long)]
     pub force: bool,
 }
@@ -25,7 +23,7 @@ pub struct Cli {
 #[group(id = "manage_group", multiple = false)]
 pub struct ManageFlags {
     #[arg(short, long, num_args = 3, value_names = ["NAME", "EMAIL", "ID"])]
-    pub create: Option<Vec<String>>, 
+    pub create: Option<Vec<String>>,
 
     #[arg(short, long, value_name = "ID")]
     pub remove: Option<String>,
