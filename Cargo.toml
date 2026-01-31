@@ -1,6 +1,6 @@
 [package]
 name = "naj"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "A secure, idempotent Git identity switcher. (Derived from Old Chinese /*ŋˤajʔ/ 'I/Me')"
 authors = ["INX <inx@inx.wf>"]
