@@ -1,8 +1,8 @@
 [package]
 name = "naj"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
-description = "A secure, idempotent Git identity switcher. (Derived from Old Chinese /*ŋˤajʔ/ 'I/Me')"
+description = "A Git identity switcher."
 authors = ["INX <inx@inx.wf>"]
 license = "BSD-2-Clause"
 readme = "README.md"
