@@ -292,7 +292,31 @@ fn run_setup(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()
 
     // 2. Switch context if needed
     if command == "init" {
-        // Init happens in current dir
+        // Init might happen in current dir or a specified dir
+        let mut target_dir = None;
+        let mut skip_next = false;
+        for arg in args.iter().skip(1) {
+            if skip_next {
+                skip_next = false;
+                continue;
+            }
+            if arg.starts_with('-') {
+                if arg == "-b" || arg == "--initial-branch" || arg == "--template" || arg == "--separate-git-dir" || arg == "--object-format" || arg == "--ref-format" {
+                    skip_next = true;
+                }
+                continue; // Skip options like -q, --bare, etc.
+            }
+            if target_dir.is_none() {
+                target_dir = Some(arg);
+            }
+        }
+        
+        if let Some(dir) = target_dir {
+            let path = PathBuf::from(dir);
+            if path.exists() && path.is_dir() {
+                std::env::set_current_dir(&path)?;
+            }
+        }
         run_switch(config, profile_id, false)?;
     } else if command == "clone" {
         // Parse target directory from clone arguments while ignoring flags (e.g., --depth)

@@ -285,3 +285,44 @@ fn test_setup_mode_local_clone() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn test_setup_mode_init_with_dir() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let config_path = temp_dir.path().join("config");
+    let test_dir = temp_dir.path().join("sandbox");
+
+    fs::create_dir_all(&test_dir)?;
+
+    Command::new(env!("CARGO_BIN_EXE_naj"))
+        .env("NAJ_CONFIG_PATH", &config_path)
+        .args(&["-c", "InitUser", "init@e.com", "init_test"])
+        .assert()
+        .success();
+
+    let dest_repo_name = "new_repo";
+
+    Command::new(env!("CARGO_BIN_EXE_naj"))
+        .env("NAJ_CONFIG_PATH", &config_path)
+        .current_dir(&test_dir)
+        .args(&[
+            "init_test",
+            "init",
+            dest_repo_name,
+        ])
+        .assert()
+        .success();
+
+    let dest_git_config = test_dir
+        .join(dest_repo_name)
+        .join(".git")
+        .join("config");
+
+    assert!(dest_git_config.exists(), "Initialized repo config should exist");
+
+    let content = fs::read_to_string(dest_git_config)?;
+    assert!(content.contains("[include]"));
+    assert!(content.contains("init_test.gitconfig"));
+
+    Ok(())
+}
