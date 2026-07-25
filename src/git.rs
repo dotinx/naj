@@ -496,3 +496,52 @@ fn warn_if_dirty_config(profile_id: &str, strategy: SwitchStrategy) -> Result<()
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn to_vec(args: &[&str]) -> Vec<String> {
+        args.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn extract_basename_handles_common_urls() {
+        assert_eq!(
+            extract_basename("git@github.com:company/backend.git"),
+            PathBuf::from("backend")
+        );
+        assert_eq!(
+            extract_basename("https://github.com/foo/bar"),
+            PathBuf::from("bar")
+        );
+        assert_eq!(
+            extract_basename("https://github.com/foo/bar/"),
+            PathBuf::from("bar")
+        );
+    }
+
+    #[test]
+    fn positional_args_skips_value_flags() {
+        // `--depth 1` must not leak `1` as a positional (the historical bug).
+        let args = to_vec(&["--depth", "1", "https://x/y.git", "dest"]);
+        assert_eq!(
+            positional_args(&args, CLONE_VALUE_FLAGS),
+            vec!["https://x/y.git", "dest"]
+        );
+    }
+
+    #[test]
+    fn positional_args_handles_attached_values_and_double_dash() {
+        // `--key=value` carries its own value; `--` forces the rest positional.
+        let args = to_vec(&["-b", "main", "--depth=1", "--", "https://x/y.git"]);
+        assert_eq!(
+            positional_args(&args, CLONE_VALUE_FLAGS),
+            vec!["https://x/y.git"]
+        );
+
+        // Bare init in cwd yields no positional target.
+        let empty: Vec<String> = to_vec(&["-q", "--bare"]);
+        assert!(positional_args(&empty, INIT_VALUE_FLAGS).is_empty());
+    }
+}
