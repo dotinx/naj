@@ -437,30 +437,66 @@ fn extract_basename(url: &str) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("repo"))
 }
 
-fn warn_if_dirty_config(_profile_id: &str, strategy: SwitchStrategy) -> Result<()> {
-    // Check for local configuration that might leak identity or signing info
-    // when using an 'Include' strategy.
-    let config_path = Path::new(".git/config");
-    if config_path.exists() {
-        let content = std::fs::read_to_string(config_path)?;
-        let check_user_block = matches!(
-            strategy,
-            SwitchStrategy::IncludeSoft | SwitchStrategy::IncludeHard
-        );
-        let mut is_dirty = false;
-        if check_user_block && (content.contains("[user]") || content.contains("[author]")) {
-            is_dirty = true;
+fn warn_if_dirty_config(profile_id: &str, strategy: SwitchStrategy) -> Result<()> {
+    // Resolve the real config file location so the check also works from a
+    // subdirectory, a worktree, or a repo with a separate git-dir.
+    let config_path = match Command::new("git")
+        .args(&["rev-parse", "--git-path", "config"])
+        .output()
+    {
+        Ok(out) if out.status.success() => {
+            PathBuf::from(String::from_utf8_lossy(&out.stdout).trim().to_string())
         }
-        if content.contains("[gpg]")
-            || content.contains("sshCommand")
-            || content.contains("gpgsign")
-        {
-            is_dirty = true;
+        _ => PathBuf::from(".git/config"),
+    };
+
+    if !config_path.exists() {
+        return Ok(());
+    }
+
+    let content = std::fs::read_to_string(&config_path)?;
+
+    // For Include strategies, a local [user]/[author] block shadows the included
+    // profile. For Override strategies those blocks are expected (we write them),
+    // so only flag signing/ssh leftovers there.
+    let check_user_block = matches!(
+        strategy,
+        SwitchStrategy::IncludeSoft | SwitchStrategy::IncludeHard
+    );
+
+    let mut markers: Vec<&str> = Vec::new();
+    if check_user_block {
+        if content.contains("[user]") {
+            markers.push("[user]");
         }
-        if is_dirty {
-            println!("\n⚠️  WARNING: Dirty Local Config Detected!");
-            // ...
+        if content.contains("[author]") {
+            markers.push("[author]");
         }
     }
+    if content.contains("[gpg]") {
+        markers.push("[gpg]");
+    }
+    if content.contains("sshCommand") {
+        markers.push("core.sshCommand");
+    }
+    if content.contains("gpgsign") {
+        markers.push("commit.gpgsign / tag.gpgsign");
+    }
+
+    if !markers.is_empty() {
+        println!(
+            "\n⚠️  WARNING: dirty local config detected in {}",
+            config_path.display()
+        );
+        println!(
+            "   These local settings may override profile '{}':",
+            profile_id
+        );
+        for marker in &markers {
+            println!("     - {}", marker);
+        }
+        println!("   Re-run with `-f` to sanitize the local config before switching.");
+    }
+
     Ok(())
 }
