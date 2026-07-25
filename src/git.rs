@@ -23,9 +23,92 @@ pub fn run(config: &NajConfig, profile_id: &str, args: &[String], force: bool) -
 
     match action {
         Action::Exec => run_exec(config, profile_id, args),
-        Action::Switch => run_switch(config, profile_id, force),
-        Action::Setup => run_setup(config, profile_id, args),
+        Action::Switch => {
+            let strategy = resolve_strategy(config.strategies.switch, force);
+            run_switch(config, profile_id, strategy)
+        }
+        Action::Setup => run_setup(config, profile_id, args, force),
     }
+}
+
+// Resolve the effective strategy from a configured base and the `--force` flag.
+// Force promotes any "soft" strategy to its "hard" (sanitizing) counterpart.
+fn resolve_strategy(base: SwitchStrategy, force: bool) -> SwitchStrategy {
+    match (force, base) {
+        (true, SwitchStrategy::IncludeSoft) => SwitchStrategy::IncludeHard,
+        (true, SwitchStrategy::OverrideSoft) => SwitchStrategy::OverrideHard,
+        (_, s) => s,
+    }
+}
+
+// git-init flags that consume a following value argument.
+const INIT_VALUE_FLAGS: &[&str] = &[
+    "-b",
+    "--initial-branch",
+    "--template",
+    "--separate-git-dir",
+    "--object-format",
+    "--ref-format",
+];
+
+// git-clone flags that consume a following value argument.
+const CLONE_VALUE_FLAGS: &[&str] = &[
+    "-b",
+    "--branch",
+    "-o",
+    "--origin",
+    "-u",
+    "--upload-pack",
+    "--reference",
+    "--reference-if-able",
+    "--depth",
+    "--shallow-since",
+    "--shallow-exclude",
+    "-j",
+    "--jobs",
+    "--template",
+    "-c",
+    "--config",
+    "--server-option",
+    "--filter",
+    "--separate-git-dir",
+    "--bundle-uri",
+];
+
+// Extract positional (non-flag) arguments from a git subcommand's arguments,
+// skipping option flags and the values consumed by value-taking flags. This
+// keeps Setup mode from mistaking a flag's value (e.g. the `1` in `--depth 1`)
+// for the clone URL or target directory.
+fn positional_args<'a>(args: &'a [String], value_flags: &[&str]) -> Vec<&'a str> {
+    let mut positionals = Vec::new();
+    let mut skip_next = false;
+    let mut only_positional = false;
+    for arg in args {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+        if only_positional {
+            positionals.push(arg.as_str());
+            continue;
+        }
+        if arg == "--" {
+            only_positional = true;
+            continue;
+        }
+        if arg.starts_with('-') {
+            // `--key=value` carries its own value; nothing to skip.
+            if arg.starts_with("--") && arg.contains('=') {
+                continue;
+            }
+            if value_flags.contains(&arg.as_str()) {
+                skip_next = true;
+            }
+            continue;
+        }
+        positionals.push(arg.as_str());
+    }
+    positionals
 }
 
 // Helper to construct the full path to a profile's .gitconfig file.
@@ -151,7 +234,7 @@ fn run_exec(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()>
     run_command(&mut cmd)
 }
 
-fn run_switch(config: &NajConfig, profile_id: &str, force: bool) -> Result<()> {
+fn run_switch(config: &NajConfig, profile_id: &str, effective_strategy: SwitchStrategy) -> Result<()> {
     let status = Command::new("git")
         .args(&["rev-parse", "--is-inside-work-tree"])
         .stdout(std::process::Stdio::null())
@@ -170,22 +253,7 @@ fn run_switch(config: &NajConfig, profile_id: &str, force: bool) -> Result<()> {
         std::env::current_dir()?.join(profile_path)
     };
 
-    // 1. Resolve Effective Strategy
-    let base_strategy = config.strategies.switch;
-    let effective_strategy = match (force, base_strategy) {
-        (true, SwitchStrategy::IncludeSoft) => SwitchStrategy::IncludeHard,
-        (true, SwitchStrategy::OverrideSoft) => SwitchStrategy::OverrideHard,
-        (false, s) => s,
-        _ => SwitchStrategy::IncludeHard, // Fallback
-    };
-
-    // Log the resolved strategy for trace visibility in debug mode
-    naj_debug!(
-        "Strategy Resolution: Base={:?}, Force={}, Effective={:?}",
-        base_strategy,
-        force,
-        effective_strategy
-    );
+    naj_debug!("Effective strategy: {:?}", effective_strategy);
 
     // Hard strategies require a clean slate to ensure security and privacy
     let should_sanitize = matches!(
@@ -278,7 +346,7 @@ fn run_switch(config: &NajConfig, profile_id: &str, force: bool) -> Result<()> {
     Ok(())
 }
 
-fn run_setup(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()> {
+fn run_setup(config: &NajConfig, profile_id: &str, args: &[String], force: bool) -> Result<()> {
     // Execute the base command (init/clone) before applying Naj customization
     let mut cmd = Command::new("git");
     cmd.args(args);
@@ -288,69 +356,54 @@ fn run_setup(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()
         return Ok(());
     }
 
+    // Setup mode uses the dedicated `clone` strategy (defaults to a hard/sanitizing
+    // switch) so freshly created repos never inherit a leaked global identity.
+    let strategy = resolve_strategy(config.strategies.clone, force);
     let command = &args[0];
 
-    // 2. Switch context if needed
     if command == "init" {
-        // Init might happen in current dir or a specified dir
-        let mut target_dir = None;
-        let mut skip_next = false;
-        for arg in args.iter().skip(1) {
-            if skip_next {
-                skip_next = false;
-                continue;
-            }
-            if arg.starts_with('-') {
-                if arg == "-b" || arg == "--initial-branch" || arg == "--template" || arg == "--separate-git-dir" || arg == "--object-format" || arg == "--ref-format" {
-                    skip_next = true;
-                }
-                continue; // Skip options like -q, --bare, etc.
-            }
-            if target_dir.is_none() {
-                target_dir = Some(arg);
-            }
-        }
-        
-        if let Some(dir) = target_dir {
-            let path = PathBuf::from(dir);
-            if path.exists() && path.is_dir() {
-                std::env::set_current_dir(&path)?;
-            }
-        }
-        run_switch(config, profile_id, false)?;
+        // `git init [dir]` creates the repo in the given directory, or the cwd.
+        let target = positional_args(&args[1..], INIT_VALUE_FLAGS)
+            .first()
+            .map(|&s| PathBuf::from(s));
+        apply_identity_after_setup(config, profile_id, strategy, target)
     } else if command == "clone" {
-        // Parse target directory from clone arguments while ignoring flags (e.g., --depth)
-        let mut url = None;
-        let mut explicit_dir = None;
-
-        // Skip 'clone'
-        for arg in args.iter().skip(1) {
-            if arg.starts_with('-') {
-                continue;
-            }
-            if url.is_none() {
-                url = Some(arg);
-            } else if explicit_dir.is_none() {
-                explicit_dir = Some(arg);
-            }
-        }
-
-        let target_dir = if let Some(dir) = explicit_dir {
-            PathBuf::from(dir)
-        } else if let Some(u) = url {
-            extract_basename(u)
-        } else {
-            // Default name if it cannot be inferred from the URL
-            PathBuf::from("repo")
+        // `git clone <url> [dir]` — infer the destination directory.
+        let positionals = positional_args(&args[1..], CLONE_VALUE_FLAGS);
+        let target_dir = match (positionals.first(), positionals.get(1)) {
+            (_, Some(&dir)) => PathBuf::from(dir),
+            (Some(&url), None) => extract_basename(url),
+            _ => PathBuf::from("repo"),
         };
+        apply_identity_after_setup(config, profile_id, strategy, Some(target_dir))
+    } else {
+        Ok(())
+    }
+}
 
-        if target_dir.exists() && target_dir.is_dir() {
-            std::env::set_current_dir(&target_dir)?;
-            run_switch(config, profile_id, false)?;
+// After a successful clone/init, enter the new repository (if any) and apply the
+// identity. If the repository directory can't be located, warn loudly rather than
+// silently leaving the repo without an identity.
+fn apply_identity_after_setup(
+    config: &NajConfig,
+    profile_id: &str,
+    strategy: SwitchStrategy,
+    target: Option<PathBuf>,
+) -> Result<()> {
+    if let Some(dir) = target {
+        if dir.exists() && dir.is_dir() {
+            std::env::set_current_dir(&dir)?;
+        } else {
+            if !is_mocking() {
+                eprintln!(
+                    "⚠️  naj: could not locate the new repository at {:?}; identity '{}' was NOT applied.\n    Run `naj {}` inside the repository to apply it.",
+                    dir, profile_id, profile_id
+                );
+            }
+            return Ok(());
         }
     }
-
-    Ok(())
+    run_switch(config, profile_id, strategy)
 }
 
 fn read_profile_config(profile_path: &Path) -> Result<Vec<(String, String)>> {

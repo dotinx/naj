@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct Strategies {
-    pub clone: String,
+    pub clone: SwitchStrategy,
     pub switch: SwitchStrategy,
 }
 
