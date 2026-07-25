@@ -3,7 +3,6 @@ use crate::utils::expand_path;
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 
 fn get_profile_path(config: &NajConfig, id: &str) -> Result<PathBuf> {
     let profile_dir = expand_path(&config.profile_dir)?;
@@ -40,27 +39,6 @@ pub fn remove_profile(config: &NajConfig, id: &str) -> Result<()> {
 
     fs::remove_file(&file_path).with_context(|| format!("Failed to remove profile {}", id))?;
     println!("Removed profile '{}'", id);
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub fn edit_profile(config: &NajConfig, id: &str) -> Result<()> {
-    let file_path = get_profile_path(config, id)?;
-
-    if !file_path.exists() {
-        bail!("Profile '{}' does not exist", id);
-    }
-
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-
-    let status = Command::new(&editor)
-        .arg(&file_path)
-        .status()
-        .with_context(|| format!("Failed to launch editor '{}'", editor))?;
-
-    if !status.success() {
-        bail!("Editor exited with non-zero status");
-    }
     Ok(())
 }
 

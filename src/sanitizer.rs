@@ -13,7 +13,6 @@ pub const BLACKLIST_KEYS: &[&str] = &[
 
 // Safety defaults to prevent unintended leaks of the global system identity
 // if a profile is incomplete or improperly configured.
-#[allow(dead_code)]
 pub const BLIND_INJECTIONS: &[(&str, &str)] = &[
     ("user.name", ""),
     ("user.email", ""),
