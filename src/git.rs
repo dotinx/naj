@@ -154,17 +154,12 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let dir_str = profile_dir.to_string_lossy();
     for line in stdout.lines() {
         let val = line.trim();
-        let path_obj = Path::new(val);
-        let match_path = val.contains(&profile_dir.to_string_lossy().to_string())
-            || (val.contains("/profiles/") && val.ends_with(".gitconfig"));
-        let match_name = path_obj
-            .file_name()
-            .map(|n| n.to_string_lossy().ends_with(".gitconfig"))
-            .unwrap_or(false);
-
-        if match_path || match_name {
+        // Only remove includes that live under Naj's own profile directory, so a
+        // user's unrelated `*.gitconfig` includes are left untouched.
+        if !dir_str.is_empty() && val.contains(dir_str.as_ref()) {
             let mut cmd = Command::new("git");
             cmd.args(&["config", "--local", "--unset", "include.path", val]);
             if is_mocking() {
@@ -195,11 +190,12 @@ fn apply_profile_override(profile_path: &Path) -> Result<()> {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // For Override strategies, we manually inject values into the local config
-    // to strictly enforce the profile's settings.
+    // to strictly enforce the profile's settings. `--replace-all` ensures repeated
+    // switches overwrite the identity keys instead of accumulating duplicates.
     for line in stdout.lines() {
         if let Some((key, value)) = line.split_once('=') {
             let mut cmd = Command::new("git");
-            cmd.args(&["config", "--local", key, value]);
+            cmd.args(&["config", "--local", "--replace-all", key, value]);
             run_command(&mut cmd)?;
         }
     }
