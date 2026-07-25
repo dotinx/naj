@@ -115,7 +115,7 @@ source <(naj --completion zsh)
 
 Naj follows the XDG Base Directory specification.
 
-* **Config File**: `~/.config/naj/naj.toml`
+* **Config File**: `~/.config/naj/config.toml`
 * **Profiles**: `~/.config/naj/profiles/*.gitconfig`
 
 On the first run, Naj will automatically create these directories and a default configuration file.
@@ -124,6 +124,7 @@ On the first run, Naj will automatically create these directories and a default 
 
 * `NAJ_CONFIG_PATH`: Override the config directory (Useful for NixOS or testing).
 * `NAJ_MOCKING=1`: Dry-run mode. Prints the constructed `git` command to stderr instead of executing it.
+* `NAJ_DEBUG=1`: Emit debug traces (e.g. resolved strategy) to stderr. Debug builds only.
 
 ## 🔒 Security Design: Blind Injection
 
@@ -148,7 +149,7 @@ This ensures that if your "work" profile is missing a GPG key, Git will error ou
 
 Use a machine running Linux to build artifacts for all targets. [rustup](https://rustup.rs/), [cross](https://github.com/cross-rs/cross), and `podman/docker` are required.
 
-Run [build.sh](./build.sh) to build artifacts for all targets.
+Run [build.sh](./scripts/build.sh) to build artifacts for all targets.
 
 ## 📄 License
 

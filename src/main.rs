@@ -9,12 +9,12 @@ mod manage;
 mod sanitizer;
 mod utils;
 
-// --- 1. 定义 CLI 结构体 (带详细文档) ---
+// --- 1. CLI definition (with detailed help docs) ---
 
 #[derive(Parser)]
 #[command(name = "naj")]
-#[command(version)] // 自动从 Cargo.toml 读取版本
-#[command(author = "Ringo")]
+#[command(version)] // Read version from Cargo.toml
+#[command(author)] // Read authors from Cargo.toml
 #[command(about = "A secure, idempotent Git identity switcher.")]
 #[command(
     long_about = "Naj (/*ŋˤajʔ/ 'I/Me') helps you manage multiple Git identities (Work, Personal, Open Source) without messing up your local config or SSH keys.\n\nIt ensures that the correct email, signing key, and SSH command are used for every commit."
@@ -65,12 +65,12 @@ struct Cli {
     completion: Option<Shell>,
 }
 
-// --- 2. Main 函数 ---
+// --- 2. Main entrypoint ---
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // 🚀 优先处理补全生成 (不加载配置，速度最快)
+    // Handle completion generation first (no config load — fastest path).
     if let Some(shell) = cli.completion {
         let mut cmd = Cli::command();
         let name = cmd.get_name().to_string();
@@ -78,16 +78,16 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // 加载配置
+    // Load configuration
     let config = config::load_config()?;
 
-    // 处理 List
+    // Handle list
     if cli.list {
         manage::list_profiles(&config)?;
         return Ok(());
     }
 
-    // 处理 Create
+    // Handle create
     if let Some(args) = cli.create {
         if args.len() == 3 {
             manage::create_profile(&config, &args[0], &args[1], &args[2])?;
@@ -95,18 +95,18 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // 处理 Remove
+    // Handle remove
     if let Some(id) = cli.remove {
         manage::remove_profile(&config, &id)?;
         return Ok(());
     }
 
-    // 处理核心逻辑: Switch / Setup / Exec
+    // Core logic: Switch / Setup / Exec
     if let Some(profile_id) = cli.profile_id {
-        // 把 profile_id 和剩下的 git_args 传给 git::run
+        // Pass profile_id and the remaining git_args to git::run
         git::run(&config, &profile_id, &cli.git_args, cli.force)?;
     } else {
-        // 如果没有 profile_id 也没有 flag，打印帮助
+        // No profile_id and no flag: print help
         if !cli.list && cli.create.is_none() && cli.remove.is_none() && cli.completion.is_none() {
             use clap::CommandFactory;
             Cli::command().print_help()?;
