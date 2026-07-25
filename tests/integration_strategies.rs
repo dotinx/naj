@@ -25,7 +25,7 @@ fn setup_env(
 fn create_profile(config_path: &std::path::Path, id: &str, name: &str, email: &str) {
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-c", name, email, id])
+        .args(["-c", name, email, id])
         .assert()
         .success();
 }

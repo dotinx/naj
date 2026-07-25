@@ -146,7 +146,7 @@ fn get_profile_dir(config: &NajConfig) -> Result<PathBuf> {
 // to prevent configuration pollution or conflicts.
 fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
     let output = Command::new("git")
-        .args(&["config", "--local", "--get-all", "include.path"])
+        .args(["config", "--local", "--get-all", "include.path"])
         .output()?;
 
     if !output.status.success() {
@@ -161,7 +161,7 @@ fn clean_existing_profiles(profile_dir: &Path) -> Result<()> {
         // user's unrelated `*.gitconfig` includes are left untouched.
         if !dir_str.is_empty() && val.contains(dir_str.as_ref()) {
             let mut cmd = Command::new("git");
-            cmd.args(&["config", "--local", "--unset", "include.path", val]);
+            cmd.args(["config", "--local", "--unset", "include.path", val]);
             if is_mocking() {
                 eprintln!("[DRY-RUN] {:?}", cmd);
             } else {
@@ -176,7 +176,7 @@ fn apply_profile_override(profile_path: &Path) -> Result<()> {
     // Use git config -f to read values directly from the file, bypassing
     // any environment or global overrides for consistency.
     let output = Command::new("git")
-        .args(&["config", "-f", &profile_path.to_string_lossy(), "--list"])
+        .args(["config", "-f", &profile_path.to_string_lossy(), "--list"])
         .output()
         .with_context(|| format!("Failed to read profile config from {:?}", profile_path))?;
 
@@ -195,7 +195,7 @@ fn apply_profile_override(profile_path: &Path) -> Result<()> {
     for line in stdout.lines() {
         if let Some((key, value)) = line.split_once('=') {
             let mut cmd = Command::new("git");
-            cmd.args(&["config", "--local", "--replace-all", key, value]);
+            cmd.args(["config", "--local", "--replace-all", key, value]);
             run_command(&mut cmd)?;
         }
     }
@@ -209,11 +209,11 @@ fn run_exec(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()>
 
     // 1. Sensitize defaults to prevent leakages if not explicitly covered by the profile
     for (k, v) in sanitizer::BLIND_INJECTIONS {
-        cmd.args(&["-c", &format!("{}={}", k, v)]);
+        cmd.args(["-c", &format!("{}={}", k, v)]);
     }
 
     // 2. Attach profile via git's native include path for most operations
-    cmd.args(&[
+    cmd.args([
         "-c",
         &format!("include.path={}", profile_path.to_string_lossy()),
     ]);
@@ -222,7 +222,7 @@ fn run_exec(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()>
     // that might conflict with the base inclusion.
     if let Ok(entries) = read_profile_config(&profile_path) {
         for (k, v) in entries {
-            cmd.args(&["-c", &format!("{}={}", k, v)]);
+            cmd.args(["-c", &format!("{}={}", k, v)]);
         }
     }
 
@@ -232,7 +232,7 @@ fn run_exec(config: &NajConfig, profile_id: &str, args: &[String]) -> Result<()>
 
 fn run_switch(config: &NajConfig, profile_id: &str, effective_strategy: SwitchStrategy) -> Result<()> {
     let status = Command::new("git")
-        .args(&["rev-parse", "--is-inside-work-tree"])
+        .args(["rev-parse", "--is-inside-work-tree"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
@@ -266,7 +266,7 @@ fn run_switch(config: &NajConfig, profile_id: &str, effective_strategy: SwitchSt
             let mut cmd = Command::new("git");
 
             // Explicitly target local config and dereference section name for type safety
-            cmd.args(&["config", "--local", "--remove-section", *section]);
+            cmd.args(["config", "--local", "--remove-section", *section]);
 
             if is_mocking() {
                 eprintln!("[DRY-RUN] {:?}", cmd);
@@ -298,7 +298,7 @@ fn run_switch(config: &NajConfig, profile_id: &str, effective_strategy: SwitchSt
 
         // Wipe 'include' section to prevent residual profile links in Hard mode
         let mut cmd = Command::new("git");
-        cmd.args(&["config", "--local", "--remove-section", "include"]);
+        cmd.args(["config", "--local", "--remove-section", "include"]);
         if is_mocking() {
             eprintln!("[DRY-RUN] {:?}", cmd);
         } else {
@@ -310,7 +310,7 @@ fn run_switch(config: &NajConfig, profile_id: &str, effective_strategy: SwitchSt
         let keys = sanitizer::BLACKLIST_KEYS;
         for key in keys {
             let mut cmd = Command::new("git");
-            cmd.args(&["config", "--local", "--unset-all", *key]); // 👈 deref here too
+            cmd.args(["config", "--local", "--unset-all", *key]); // 👈 deref here too
 
             if is_mocking() {
                 eprintln!("[DRY-RUN] {:?}", cmd);
@@ -328,7 +328,7 @@ fn run_switch(config: &NajConfig, profile_id: &str, effective_strategy: SwitchSt
         SwitchStrategy::IncludeSoft | SwitchStrategy::IncludeHard => {
             let path_str = abs_profile_path.to_string_lossy();
             let mut cmd = Command::new("git");
-            cmd.args(&["config", "--local", "--add", "include.path", &path_str]);
+            cmd.args(["config", "--local", "--add", "include.path", &path_str]);
             run_command(&mut cmd)?;
         }
         SwitchStrategy::OverrideSoft | SwitchStrategy::OverrideHard => {
@@ -404,7 +404,7 @@ fn apply_identity_after_setup(
 
 fn read_profile_config(profile_path: &Path) -> Result<Vec<(String, String)>> {
     let output = Command::new("git")
-        .args(&["config", "-f", &profile_path.to_string_lossy(), "--list"])
+        .args(["config", "-f", &profile_path.to_string_lossy(), "--list"])
         .output()
         .with_context(|| format!("Failed to read profile config from {:?}", profile_path))?;
 
@@ -437,7 +437,7 @@ fn warn_if_dirty_config(profile_id: &str, strategy: SwitchStrategy) -> Result<()
     // Resolve the real config file location so the check also works from a
     // subdirectory, a worktree, or a repo with a separate git-dir.
     let config_path = match Command::new("git")
-        .args(&["rev-parse", "--git-path", "config"])
+        .args(["rev-parse", "--git-path", "config"])
         .output()
     {
         Ok(out) if out.status.success() => {

@@ -17,7 +17,7 @@ fn test_switch_force_mocking() -> Result<(), Box<dyn std::error::Error>> {
     // Create profile
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
-        .args(&["-c", "User", "u@e.com", "mock_test"])
+        .args(["-c", "User", "u@e.com", "mock_test"])
         .assert()
         .success();
 
@@ -26,7 +26,7 @@ fn test_switch_force_mocking() -> Result<(), Box<dyn std::error::Error>> {
         .env("NAJ_CONFIG_PATH", &config_path)
         .env("NAJ_MOCKING", "1")
         .current_dir(&repo_dir)
-        .args(&["mock_test", "-f"])
+        .args(["mock_test", "-f"])
         .assert()
         .success()
         // Check for dry-run output of cleanup commands

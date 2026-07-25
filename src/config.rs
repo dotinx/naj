@@ -11,18 +11,13 @@ pub struct Strategies {
     pub switch: SwitchStrategy,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SwitchStrategy {
+    #[default]
     IncludeSoft,
     IncludeHard,
     OverrideSoft,
     OverrideHard,
-}
-
-impl Default for SwitchStrategy {
-    fn default() -> Self {
-        SwitchStrategy::IncludeSoft
-    }
 }
 
 impl Serialize for SwitchStrategy {

@@ -28,7 +28,7 @@ fn test_profile_creation_and_listing() -> Result<(), Box<dyn std::error::Error>>
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_naj"));
     cmd.env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-c", "Test User", "test@example.com", "test_user"])
+        .args(["-c", "Test User", "test@example.com", "test_user"])
         .assert()
         .success();
 
@@ -59,14 +59,14 @@ fn test_duplicate_creation_failure() -> Result<(), Box<dyn std::error::Error>> {
     // Create first
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-c", "User", "u@e.com", "dup_test"])
+        .args(["-c", "User", "u@e.com", "dup_test"])
         .assert()
         .success();
 
     // Create duplicate
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-c", "User2", "u2@e.com", "dup_test"])
+        .args(["-c", "User2", "u2@e.com", "dup_test"])
         .assert()
         .failure(); // Should fail
 
@@ -82,7 +82,7 @@ fn test_remove_profile() -> Result<(), Box<dyn std::error::Error>> {
     // Create
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-c", "User", "u@e.com", "rem_test"])
+        .args(["-c", "User", "u@e.com", "rem_test"])
         .assert()
         .success();
     assert!(profile_path.exists());
@@ -90,7 +90,7 @@ fn test_remove_profile() -> Result<(), Box<dyn std::error::Error>> {
     // Remove
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-r", "rem_test"])
+        .args(["-r", "rem_test"])
         .assert()
         .success();
     assert!(!profile_path.exists());
@@ -98,7 +98,7 @@ fn test_remove_profile() -> Result<(), Box<dyn std::error::Error>> {
     // Remove non-existent
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-r", "rem_test"])
+        .args(["-r", "rem_test"])
         .assert()
         .failure();
 
@@ -113,7 +113,7 @@ fn test_exec_dry_run_injection_strict() -> Result<(), Box<dyn std::error::Error>
     // Create a profile first
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", config_path)
-        .args(&["-c", "Test", "test@e.com", "p1"])
+        .args(["-c", "Test", "test@e.com", "p1"])
         .assert()
         .success();
 
@@ -121,7 +121,7 @@ fn test_exec_dry_run_injection_strict() -> Result<(), Box<dyn std::error::Error>
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_naj"));
     cmd.env("NAJ_CONFIG_PATH", config_path)
         .env("NAJ_MOCKING", "1")
-        .args(&["p1", "commit", "-m", "foo"])
+        .args(["p1", "commit", "-m", "foo"])
         .assert()
         .success()
         .stderr(predicates::str::contains("user.name="))
@@ -153,7 +153,7 @@ fn test_switch_mode_persistent() -> Result<(), Box<dyn std::error::Error>> {
     // Create profile
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
-        .args(&["-c", "Switch User", "s@e.com", "switch_test"])
+        .args(["-c", "Switch User", "s@e.com", "switch_test"])
         .assert()
         .success();
 
@@ -202,7 +202,7 @@ fn test_switch_force_mode_sanitization() -> Result<(), Box<dyn std::error::Error
     // Create profile
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
-        .args(&["-c", "Force User", "f@e.com", "force_test"])
+        .args(["-c", "Force User", "f@e.com", "force_test"])
         .assert()
         .success();
 
@@ -210,7 +210,7 @@ fn test_switch_force_mode_sanitization() -> Result<(), Box<dyn std::error::Error
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
         .current_dir(&repo_dir)
-        .args(&["force_test", "-f"])
+        .args(["force_test", "-f"])
         .assert()
         .success();
 
@@ -245,7 +245,7 @@ fn test_setup_mode_local_clone() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Create Profile
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
-        .args(&["-c", "CloneUser", "c@e.com", "clone_test"])
+        .args(["-c", "CloneUser", "c@e.com", "clone_test"])
         .assert()
         .success();
 
@@ -260,7 +260,7 @@ fn test_setup_mode_local_clone() -> Result<(), Box<dyn std::error::Error>> {
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
         .current_dir(temp_dir.path()) // Execute in temp root
-        .args(&[
+        .args([
             "clone_test",
             "clone",
             source_repo.to_str().unwrap(),
@@ -296,7 +296,7 @@ fn test_setup_mode_init_with_dir() -> Result<(), Box<dyn std::error::Error>> {
 
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
-        .args(&["-c", "InitUser", "init@e.com", "init_test"])
+        .args(["-c", "InitUser", "init@e.com", "init_test"])
         .assert()
         .success();
 
@@ -305,7 +305,7 @@ fn test_setup_mode_init_with_dir() -> Result<(), Box<dyn std::error::Error>> {
     Command::new(env!("CARGO_BIN_EXE_naj"))
         .env("NAJ_CONFIG_PATH", &config_path)
         .current_dir(&test_dir)
-        .args(&[
+        .args([
             "init_test",
             "init",
             dest_repo_name,

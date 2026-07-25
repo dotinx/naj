@@ -56,7 +56,7 @@ pub fn list_profiles(config: &NajConfig) -> Result<()> {
     for entry in fs::read_dir(profile_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "gitconfig") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "gitconfig") {
             if let Some(stem) = path.file_stem() {
                 println!("{}", stem.to_string_lossy());
             }
