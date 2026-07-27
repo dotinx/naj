@@ -112,9 +112,10 @@ fn positional_args<'a>(args: &'a [String], value_flags: &[&str]) -> Vec<&'a str>
 }
 
 // Helper to construct the full path to a profile's .gitconfig file.
+// The ID is validated against path traversal before touching the filesystem.
 fn get_profile_path(config: &NajConfig, id: &str) -> Result<PathBuf> {
     let profile_dir = expand_path(&config.profile_dir)?;
-    let p = profile_dir.join(format!("{}.gitconfig", id));
+    let p = crate::utils::profile_path(&profile_dir, id)?;
     if !p.exists() {
         return Err(anyhow!("Profile '{}' not found at {:?}", id, p));
     }

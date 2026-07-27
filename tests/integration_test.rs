@@ -287,6 +287,42 @@ fn test_setup_mode_local_clone() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn test_path_traversal_profile_id_rejected() -> Result<(), Box<dyn std::error::Error>> {
+    let temp_dir = TempDir::new()?;
+    let config_path = temp_dir.path();
+
+    // Create with a traversal ID must fail...
+    Command::new(env!("CARGO_BIN_EXE_naj"))
+        .env("NAJ_CONFIG_PATH", config_path)
+        .args(["-c", "Evil", "evil@e.com", "../evil"])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("Invalid profile ID"));
+
+    // ...and must not have written anything outside the profiles directory.
+    assert!(!config_path.join("evil.gitconfig").exists());
+    assert!(!config_path.join("profiles").join("../evil.gitconfig").exists());
+
+    // Remove with a traversal ID must fail before any filesystem access.
+    Command::new(env!("CARGO_BIN_EXE_naj"))
+        .env("NAJ_CONFIG_PATH", config_path)
+        .args(["-r", "../evil"])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("Invalid profile ID"));
+
+    // Exec/Switch with a traversal ID must fail the same way.
+    Command::new(env!("CARGO_BIN_EXE_naj"))
+        .env("NAJ_CONFIG_PATH", config_path)
+        .args(["../evil", "status"])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("Invalid profile ID"));
+
+    Ok(())
+}
+
+#[test]
 fn test_setup_mode_init_with_dir() -> Result<(), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let config_path = temp_dir.path().join("config");

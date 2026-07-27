@@ -1,12 +1,14 @@
 use crate::config::NajConfig;
-use crate::utils::expand_path;
+use crate::utils::{expand_path, profile_path};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::PathBuf;
 
+// Resolve the path for a profile file. The ID is validated against path
+// traversal by `profile_path` before any filesystem access happens.
 fn get_profile_path(config: &NajConfig, id: &str) -> Result<PathBuf> {
     let profile_dir = expand_path(&config.profile_dir)?;
-    Ok(profile_dir.join(format!("{}.gitconfig", id)))
+    profile_path(&profile_dir, id)
 }
 
 pub fn create_profile(config: &NajConfig, name: &str, email: &str, id: &str) -> Result<()> {
