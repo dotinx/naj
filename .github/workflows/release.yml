@@ -1,0 +1,75 @@
+name: Release
+
+# Triggered by pushing a version tag, e.g. `git tag v0.1.7 && git push --tags`.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for changelog generation)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify tag matches Cargo.toml version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CRATE_VERSION=$(grep '^version' Cargo.toml | head -n 1 | cut -d '"' -f 2)
+          echo "Tag: $TAG_VERSION / Cargo.toml: $CRATE_VERSION"
+          if [ "$TAG_VERSION" != "$CRATE_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match Cargo.toml version ($CRATE_VERSION)"
+            exit 1
+          fi
+
+      - name: Run tests
+        run: cargo test --locked
+
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      # scripts/build.sh requires podman in PATH (cross itself falls back to
+      # the runner's preinstalled docker, so no further setup is needed).
+      - name: Install podman
+        run: sudo apt-get update && sudo apt-get install -y podman
+
+      - name: Build release artifacts
+        run: bash scripts/build.sh
+
+      - name: Generate release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          {
+            echo "## Changes"
+            echo
+            PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+            if [ -n "$PREV" ]; then
+              git log "$PREV".."$TAG" --pretty=format:'- %s (%h)'
+            else
+              git log "$TAG" --pretty=format:'- %s (%h)'
+            fi
+            echo
+            echo
+            echo "## Checksums"
+            echo
+            bash scripts/hash.sh
+          } > release_notes.md
+          cat release_notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/*.tar.gz dist/*.sha256 --title "$TAG" --notes-file release_notes.md --verify-tag
