@@ -111,6 +111,11 @@ naj work -f
 source <(naj --completion zsh)
 ```
 
+For `zsh`, `bash`, and `fish`, the generated script completes profile IDs
+(dynamically, from `naj -l`) at the first position and delegates everything
+after the profile to git's own completion. `powershell` and `elvish` fall
+back to static flag completion.
+
 ## ⚙️ Configuration
 
 Naj follows the XDG Base Directory specification.
